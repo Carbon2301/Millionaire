@@ -59,6 +59,7 @@ Account acc;
      printf("\t1. Đăng nhập\n");
      printf("\t2. Đăng ký\n");
      printf("\t3. Trở về\n");
+     printf("Lựa chọn của bạn là: ");
      scanf(" %[^\n]", input);
      if (strlen(input) != 1 || !isdigit(input[0]))
        break;
@@ -73,11 +74,12 @@ Account acc;
    int op;
    do
    {
-     printf("\nLựa chọn của bạn là:\n");
+     printf("\nMenu:\n");
      printf("\t1. Thay đổi mật khẩu.\n");
      printf("\t2. Chơi đơn\n");
      printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
      printf("\t4. Đăng xuất.\n");
+     printf("Lựa chọn của bạn là: ");
      scanf(" %[^\n]", input);
      if (strlen(input) != 1 || !isdigit(input[0]))
        break;
@@ -214,9 +216,9 @@ int change_password(char password[]){
      {
      case 1:
        msg.type = LOGIN;
-       printf("Username: ");
+       printf("Enter username: ");
        scanf(" %[^\n]", username);
-       printf("Password: ");
+       printf("Enter password: ");
        scanf(" %[^\n]", password);
        strcpy(msg.data_type, "string");
        strcpy(msg.value, username);
@@ -240,7 +242,7 @@ int change_password(char password[]){
            {
              acc.login_status = 1;
              strcpy(acc.username, username);
-             printf("%s\n", msg.value);
+             printf("Welcome, %s\n", msg.value);
              show_menu_logged();
            }
            else
@@ -251,44 +253,38 @@ int change_password(char password[]){
        }
        break;
      case 2:
-       // Bước 1: Yêu cầu người dùng nhập username và password
+
        printf("Username: ");
        scanf(" %[^\n]", username);
        printf("Password: ");
        scanf(" %[^\n]", password);
 
-       // Bước 2: Kiểm tra độ dài của username và password để tránh lỗi tràn bộ đệm
        if (strlen(username) + 1 + strlen(password) >= sizeof(msg.value)) {
          printf("Tên đăng nhập hoặc mật khẩu quá dài\n");
          break;
        }
 
-       // Bước 3: Đặt thông tin vào msg trước khi gửi đi
        msg.type = SIGNUP;
        strcpy(msg.data_type, "string");
 
-       // Nối username và password vào msg.value với khoảng trắng ở giữa
        snprintf(msg.value, sizeof(msg.value), "%s %s", username, password);
        msg.length = strlen(msg.value);
 
-       // Bước 4: Gửi thông điệp chứa cả username và password
        if (send(sockfd, &msg, sizeof(msg), 0) < 0) {
          perror("Gửi dữ liệu không thành công");
          break;
        }
 
-       // Bước 5: Nhận phản hồi từ server
        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
        if (recvBytes < 0) {
          perror("Nhận dữ liệu không thành công");
        } else if (recvBytes == 0) {
          printf("Kết nối bị đóng từ server\n");
        } else {
-         // Kiểm tra loại phản hồi
          if (msg.type == ACCOUNT_EXIST) {
            printf("Tài khoản đã tồn tại: %s\n", msg.value);
          } else if (msg.type == SIGNUP_SUCCESS) {
-           printf("Đăng ký thành công: %s\n", msg.value);
+           printf("Đăng ký thành công tài khoản: %s\n", msg.value);
          }
        }
        break;
