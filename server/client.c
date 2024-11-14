@@ -391,6 +391,9 @@ int play_alone() {
                     scanf(" %[^\n]", msg.value);
                     send(sockfd, &msg, sizeof(msg), 0);
                     break;
+                case STOP_GAME:
+                    printf("Bạn đã dừng cuộc chơi! %s\n", msg.value);
+                    return 1;
                 case CORRECT_ANSWER:
                     printf("Đúng rồi! %s\n", msg.value);
                     break;
