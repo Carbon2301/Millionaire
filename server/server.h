@@ -429,7 +429,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       dap_an = atoi(strtok(msg.value, "|"));
       if (questions->answer[level - 1] == dap_an)
       {
-        sleep(2);
+        sleep(1);
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
@@ -447,12 +447,27 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       }
       else
       {
-        sleep(2);
+        sleep(1);
         msg.type = LOSE;
-        sprintf(str, "%d", questions->answer[level - 1]);
+        if (level <= 5) {
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Lose\n", conn_fd);
+        break;
+        } else if (level <= 10) {
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
+        strcpy(msg.value, str);
+        send(conn_fd, &msg, sizeof(msg), 0);
+        printf("[%d]: Lose\n", conn_fd);
+        break;
+        } else {
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
+        strcpy(msg.value, str);
+        send(conn_fd, &msg, sizeof(msg), 0);
+        printf("[%d]: Lose\n", conn_fd);
+        break;
+        }
       }
       break;
     case FIFTY_FIFTY:

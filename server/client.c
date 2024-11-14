@@ -398,7 +398,7 @@ int play_alone() {
                     printf("Bạn đã thắng! %s\n", msg.value);
                     return 1;
                 case LOSE:
-                    printf("Bạn đã thua! Đáp án đúng: %s\n", msg.value);
+                    printf("Bạn đã thua! %s\n", msg.value);
                     return 1;
                 default:
                     printf("Nhận được tin nhắn không xác định từ server.\n");
