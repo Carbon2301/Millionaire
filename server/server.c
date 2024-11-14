@@ -17,8 +17,8 @@ int main(int argc, char const *argv[])
   connect_to_database();
   signal(SIGINT, catch_ctrl_c_and_exit);
 
-  struct sockaddr_in server; /* server's address information */
-  struct sockaddr_in client; /* client's address information */
+  struct sockaddr_in server; 
+  struct sockaddr_in client; 
   const int PORT = atoi(argv[1]);
   char buff[BUFF_SIZE] = {0};
   int listen_fd, conn_fd, opt = TRUE, sin_size;

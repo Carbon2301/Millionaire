@@ -389,7 +389,7 @@ int play_alone()
             {
             case QUESTION:
                 // Kiểm tra và in câu hỏi
-                printf("Câu hỏi: %s\n", msg.value);
+                printf("%s\n", msg.value);
                 printf("Đáp án của bạn: ");
                 msg.type = CHOICE_ANSWER;
                 scanf(" %[^\n]", msg.value);

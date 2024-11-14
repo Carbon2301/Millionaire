@@ -486,16 +486,14 @@ initQuestion:
     msg.type = QUESTION;
     sprintf(str, "%d", level + 1);
     strcpy(msg.value, str);
-    strcat(msg.value, "|");
-    strcat(msg.value, questions.question[level]);
-    strcat(msg.value, "|");
-    strcat(msg.value, questions.a[level]);
-    strcat(msg.value, "|");
-    strcat(msg.value, questions.b[level]);
-    strcat(msg.value, "|");
-    strcat(msg.value, questions.c[level]);
-    strcat(msg.value, "|");
-    strcat(msg.value, questions.d[level]);
+    msg.type = QUESTION;
+    sprintf(str, "Câu %d: %s\n", level + 1, questions.question[level]); 
+    strcpy(msg.value, str); 
+
+    sprintf(str, "A. %s\nB. %s\nC. %s\nD. %s\n", 
+    questions.a[level], questions.b[level], questions.c[level], questions.d[level]);
+    strcat(msg.value, str); 
+
     send(conn_fd, &msg, sizeof(msg), 0);
     level++;
 
