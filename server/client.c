@@ -12,38 +12,38 @@ Account acc;
    while (*s)
    {
      if (!isdigit(*s))
-     { // if the character is not a number, return false
+     { 
        return 0;
      }
-     s++; // point to next character
+     s++; 
    }
    return 1;
  }
 
  int validate_ip(char *ip)
- { // check whether the IP is valid or not
+ { 
    int i, num, dots = 0;
    char *ptr;
    if (ip == NULL)
      return 0;
-   ptr = strtok(ip, "."); // cut the string using dor delimiter
+   ptr = strtok(ip, "."); 
    if (ptr == NULL)
      return 0;
    while (ptr)
    {
-     if (!is_number(ptr)) // check whether the sub string is holding only number or not
+     if (!is_number(ptr)) 
        return 0;
-     num = atoi(ptr); // convert substring to number
+     num = atoi(ptr); 
      if (num >= 0 && num <= 255)
      {
-       ptr = strtok(NULL, "."); // cut the next part of the string
+       ptr = strtok(NULL, "."); 
        if (ptr != NULL)
-         dots++; // increase the dot count
+         dots++; 
      }
      else
        return 1;
    }
-   if (dots != 3) // if the number of dots are not 3, return false
+   if (dots != 3)
      return 0;
    return 1;
  }
@@ -55,7 +55,7 @@ Account acc;
    int op;
    do
    {
-     printf("\n************************************\n");
+     printf("\nVui lòng chọn một trong các chức năng sau để tiếp tục:\n");
      printf("\t1. Đăng nhập\n");
      printf("\t2. Đăng ký\n");
      printf("\t3. Trở về\n");
@@ -73,10 +73,10 @@ Account acc;
    int op;
    do
    {
-     printf("\n************************************\n");
+     printf("\nLựa chọn của bạn là:\n");
      printf("\t1. Thay đổi mật khẩu.\n");
-     printf("\t2. Play Alone\n");
-     printf("\t3. Play PVP - tam thoi chua xu li.\n");
+     printf("\t2. Chơi đơn\n");
+     printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
      printf("\t4. Đăng xuất.\n");
      scanf(" %[^\n]", input);
      if (strlen(input) != 1 || !isdigit(input[0]))
@@ -89,7 +89,7 @@ Account acc;
 int connect_to_server(char serverIP[], int serverPort) {
     
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket creation error");
+        perror("Tạo socket không thành công");
         return 0;
     }
 
@@ -100,19 +100,19 @@ int connect_to_server(char serverIP[], int serverPort) {
     server.sin_port = htons(serverPort);
 
     if (inet_pton(AF_INET, serverIP, &server.sin_addr) <= 0) {
-        fprintf(stderr, "Invalid address or address not supported\n");
+        fprintf(stderr, "Không tồn tại địa chỉ hoặc địa chỉ không được hỗ trợ\n");
         return 0;
     }
 
-    printf("\nConnecting....\n");
+    printf("\nĐang kết nối\n");
 
     // Kết nối đến server
     if (connect(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0) {
-        perror("Connection failed");
+        perror("Kết nối thất bại");
         return 0;
     }
 
-    printf("Connected!\n");
+    printf("Đã kết nối!\n");
     return 1;
 }
 
@@ -135,12 +135,12 @@ int login(char username[], char password[])
   msg.length = strlen(msg.value);
   if (send(sockfd, &msg, sizeof(Message), 0) < 0)
   {
-    printf("Send failed");
+    printf("Gửi dữ liệu không thành công");
   }
 
   if (recv(sockfd, &msg, sizeof(Message), 0) < 0)
   {
-    printf("Receive failed");
+    printf("Nhận dữ liệu không thành công");
   }
 
   return msg.type;
@@ -157,12 +157,12 @@ int signup(char username[], char password[])
   msg.length = strlen(msg.value);
   if (send(sockfd, &msg, sizeof(Message), 0) < 0)
   {
-    printf("Send failed");
+    printf("Gửi dữ liệu không thành công");
   }
 
   if (recv(sockfd, &msg, sizeof(Message), 0) < 0)
   {
-    printf("Receive failed");
+    printf("Nhận dữ liệu không thành công");
   }
 
   return msg.type;
@@ -173,7 +173,7 @@ int logout(){
   msg.type = LOGOUT;
   if (send(sockfd, &msg, sizeof(Message), 0) < 0)
   {
-    printf("Send failed");
+    printf("Gửi dữ liệu không thành công");
   }
   return msg.type;
 }
@@ -186,12 +186,12 @@ int change_password(char password[]){
   msg.length = strlen(msg.value);
   if (send(sockfd, &msg, sizeof(Message), 0) < 0)
   {
-    printf("Send failed");
+    printf("Gửi dữ liệu không thành công");
   }
 
   if (recv(sockfd, &msg, sizeof(Message), 0) < 0)
   {
-    printf("Receive failed");
+    printf("Nhận dữ liệu không thành công");
   }
 
   return msg.type;
@@ -221,14 +221,14 @@ int change_password(char password[]){
        msg.length = strlen(msg.value);
        if (send(sockfd, &msg, sizeof(msg), 0) < 0)
        {
-         printf("Send failed\n");
+         printf("Gửi dữ liệu không thành công\n");
        }
        else
        {
          recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
          if (recvBytes < 0)
          {
-           printf("Receive failed\n");
+           printf("Nhận dữ liệu không thành công\n");
          }
          else
          {
@@ -254,14 +254,14 @@ int change_password(char password[]){
        strcpy(msg.data_type, "string");
        if (send(sockfd, &msg, sizeof(msg), 0) < 0)
        {
-         printf("Send failed\n");
+         printf("Gửi dữ liệu không thành công\n");
        }
        else
        {
          recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
          if (recvBytes < 0)
          {
-           printf("Receive failed\n");
+           printf("Nhận dữ liệu không thành công\n");
          }
          else
          {
@@ -279,14 +279,14 @@ int change_password(char password[]){
        msg.length = strlen(msg.value);
        if (send(sockfd, &msg, sizeof(msg), 0) < 0)
        {
-         printf("Send failed\n");
+         printf("Gửi dữ liệu không thành công\n");
        }
        else
        {
          recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
          if (recvBytes < 0)
          {
-           printf("Receive failed\n");
+           printf("Nhận dữ liệu không thành công\n");
          }
          else
          {
@@ -358,7 +358,7 @@ int change_password(char password[]){
      case 4:
        msg.type = LOGOUT;
        send(sockfd, &msg, sizeof(msg), 0);
-       printf("Đăng xuất\n");
+       printf("Bạn đã đăng xuất\n");
        acc.login_status = 0;
        show_menu_login = 0;
        break;
@@ -372,7 +372,7 @@ int change_password(char password[]){
 
 int play_alone()
 {
-    printf("Chơi một mình\n");
+    printf("Bạn chọn chơi đơn. Hãy trả lời các câu hỏi dưới dây để nhận phần thưởng!\n");
     Message msg;
     while (1)
     {
@@ -402,7 +402,7 @@ int play_alone()
                 printf("Bạn đã thắng! %s\n", msg.value);
                 return 1;
             case LOSE:
-                printf("Bạn đã thua! %s\n", msg.value);
+                printf("Bạn đã thua! Đáp án đúng: %s\n", msg.value);
                 return 1;
             default:
                 printf("Nhận được tin nhắn không xác định từ server.\n");

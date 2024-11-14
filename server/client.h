@@ -58,7 +58,8 @@ typedef struct _account
   int login_status; // 0: not login; 1: logged in
 } Account;
 
-/*--------------------- Function Declaration -------------------------*/
+
+
  int is_number(const char *s);
  int validate_ip(char *ip);
  int menu_start();

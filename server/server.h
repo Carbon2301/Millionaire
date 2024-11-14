@@ -87,7 +87,6 @@ pthread_mutex_t mutex;
 
 MYSQL *conn;
 
-/*------------ Function Declare ----------------*/
 int connect_to_database();
 int execute_query(char *query);
 Question get_questions();
@@ -108,7 +107,7 @@ int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level);
 int handle_play_alone(int);
 
-/*---------------- Utilities -------------------*/
+/*---------------- Tính năng -------------------*/
 int connect_to_database()
 {
   char server[50], username[50], password[50], database[50];
@@ -245,13 +244,13 @@ void add_client(int conn_fd)
   Client *new = new_client();
   new->conn_fd = conn_fd;
   if (head_client == NULL)
-    head_client = new; // if linked list is empty
+    head_client = new; 
   else
   {
-    Client *tmp = head_client; // assign head to p
+    Client *tmp = head_client; 
     while (tmp->next != NULL)
-      tmp = tmp->next; // traverse the list until the last node
-    tmp->next = new;   // Point the previous last node to the new node created.
+      tmp = tmp->next; 
+    tmp->next = new;   
   }
 }
 
@@ -431,7 +430,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       if (questions->answer[level - 1] == dap_an)
       {
         sleep(2);
-        sprintf(str, "%d %d", questions->answer[level - 1], questions->reward[level - 1]);
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
         {
@@ -442,7 +441,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         else{
           msg.type = CORRECT_ANSWER;
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: Correct answer question %d\n", conn_fd, level - 1);
+          printf("[%d]: Correct answer question %d\n", conn_fd, level );
           return 0;
         }
       }
