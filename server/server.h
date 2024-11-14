@@ -475,7 +475,7 @@ int handle_play_alone(int conn_fd)
 {
   Message msg;
   Question questions = get_questions();
-  char str[100];
+  char str[2048];
   int level = 0;
   int re;
 
@@ -486,10 +486,10 @@ initQuestion:
     sprintf(str, "%d", level + 1);
     strcpy(msg.value, str);
     msg.type = QUESTION;
-    sprintf(str, "Câu %d: %s\n", level + 1, questions.question[level]); 
+    snprintf(str, sizeof(str), "Câu %d: %s\n", level + 1, questions.question[level]);
     strcpy(msg.value, str); 
 
-    sprintf(str, "A. %s\nB. %s\nC. %s\nD. %s\n", 
+    snprintf(str, sizeof(str), "A. %s\nB. %s\nC. %s\nD. %s\n",
     questions.a[level], questions.b[level], questions.c[level], questions.d[level]);
     strcat(msg.value, str); 
 

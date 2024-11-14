@@ -245,9 +245,17 @@ int change_password(char password[]){
              printf("Welcome, %s\n", msg.value);
              show_menu_logged();
            }
-           else
+           else if(msg.type == LOGGED_IN)
            {
-             printf("%s\n", msg.value);
+             printf("Tài khoản: '%s' đang được đăng nhập ở nơi khác. Vui lòng thử lại!\n", msg.value);
+           }
+           else if(msg.type == ACCOUNT_NOT_EXIST)
+           {
+             printf("Tài khoản không tồn tại!");
+           }
+           else if(msg.type == WRONG_PASSWORD)
+           {
+             printf("Mật khẩu sai, vui lòng thử lại!");
            }
          }
        }
