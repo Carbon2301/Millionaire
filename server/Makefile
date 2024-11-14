@@ -1,6 +1,21 @@
-all: run
+# Define compiler and libraries
+CC = gcc
+CFLAGS = -pthread
+LDFLAGS = -L/usr/local/mysql/lib -lmysqlclient
+CLIENT_SRC = client.c
+SERVER_SRC = server.c
 
-run: server.c
-	gcc -pthread -o server server.c -L/usr/local/mysql/lib -lmysqlclient
+# Define targets
+all: server client
+
+# Compile server
+server: $(SERVER_SRC)
+	$(CC) $(CFLAGS) -o server $(SERVER_SRC) $(LDFLAGS)
+
+# Compile client
+client: $(CLIENT_SRC)
+	$(CC) $(CFLAGS) -o client $(CLIENT_SRC)
+
+# Clean up generated files
 clean: 
-	rm -f server
+	rm -f server client
