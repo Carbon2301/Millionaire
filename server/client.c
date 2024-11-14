@@ -124,48 +124,52 @@ int disconnect_to_server()
   return 1;
 }
 
-int login(char username[], char password[])
-{
-  Message msg;
-  msg.type = LOGIN;
-  strcpy(msg.data_type, "string");
-  strcpy(msg.value, username);
-  strcat(msg.value, " ");
-  strcat(msg.value, password);
-  msg.length = strlen(msg.value);
-  if (send(sockfd, &msg, sizeof(Message), 0) < 0)
-  {
-    printf("Gửi dữ liệu không thành công");
-  }
+int login(char username[], char password[]) {
+    Message msg;
+    msg.type = LOGIN;
+    strcpy(msg.data_type, "string");
+    strcpy(msg.value, username);
+    strcat(msg.value, " ");
+    strcat(msg.value, password);
+    msg.length = strlen(msg.value);
+    if (send(sockfd, &msg, sizeof(Message), 0) < 0) {
+        printf("Gửi dữ liệu không thành công");
+    }
 
-  if (recv(sockfd, &msg, sizeof(Message), 0) < 0)
-  {
-    printf("Nhận dữ liệu không thành công");
-  }
+    recvBytes = recv(sockfd, &msg, sizeof(Message), 0);
+    if (recvBytes == 0) {
+        printf("Server đã ngắt kết nối\n");
+        close(sockfd);
+        exit(0);
+    } else if (recvBytes < 0) {
+        printf("Nhận dữ liệu không thành công");
+    }
 
-  return msg.type;
+    return msg.type;
 }
 
-int signup(char username[], char password[])
-{
-  Message msg;
-  msg.type = SIGNUP;
-  strcpy(msg.data_type, "string");
-  strcpy(msg.value, username);
-  strcat(msg.value, " ");
-  strcat(msg.value, password);
-  msg.length = strlen(msg.value);
-  if (send(sockfd, &msg, sizeof(Message), 0) < 0)
-  {
-    printf("Gửi dữ liệu không thành công");
-  }
+int signup(char username[], char password[]) {
+    Message msg;
+    msg.type = SIGNUP;
+    strcpy(msg.data_type, "string");
+    strcpy(msg.value, username);
+    strcat(msg.value, " ");
+    strcat(msg.value, password);
+    msg.length = strlen(msg.value);
+    if (send(sockfd, &msg, sizeof(Message), 0) < 0) {
+        printf("Gửi dữ liệu không thành công");
+    }
 
-  if (recv(sockfd, &msg, sizeof(Message), 0) < 0)
-  {
-    printf("Nhận dữ liệu không thành công");
-  }
+    recvBytes = recv(sockfd, &msg, sizeof(Message), 0);
+    if (recvBytes == 0) {
+        printf("Server đã ngắt kết nối\n");
+        close(sockfd);
+        exit(0);
+    } else if (recvBytes < 0) {
+        printf("Nhận dữ liệu không thành công");
+    }
 
-  return msg.type;
+    return msg.type;
 }
 
 int logout(){
@@ -370,43 +374,39 @@ int change_password(char password[]){
    return 0;
  }
 
-int play_alone()
-{
+int play_alone() {
     printf("Bạn chọn chơi đơn. Hãy trả lời các câu hỏi dưới dây để nhận phần thưởng!\n");
     Message msg;
-    while (1)
-    {
+    while (1) {
         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-        if (recvBytes < 0)
-        {
+        if (recvBytes == 0) {
+            printf("Server đã ngắt kết nối\n");
+            close(sockfd);
+            exit(0);
+        } else if (recvBytes < 0) {
             perror("Server đã ngắt kết nối");
             exit(0);
-            return 0;
-        }
-        else
-        {
-            switch (msg.type)
-            {
-            case QUESTION:
-                // Kiểm tra và in câu hỏi
-                printf("%s\n", msg.value);
-                printf("Đáp án của bạn: ");
-                msg.type = CHOICE_ANSWER;
-                scanf(" %[^\n]", msg.value);
-                send(sockfd, &msg, sizeof(msg), 0);
-                break;
-            case CORRECT_ANSWER:
-                printf("Đúng rồi! %s\n", msg.value);
-                break;
-            case WIN:
-                printf("Bạn đã thắng! %s\n", msg.value);
-                return 1;
-            case LOSE:
-                printf("Bạn đã thua! Đáp án đúng: %s\n", msg.value);
-                return 1;
-            default:
-                printf("Nhận được tin nhắn không xác định từ server.\n");
-                break;
+        } else {
+            switch (msg.type) {
+                case QUESTION:
+                    printf("%s\n", msg.value);
+                    printf("Đáp án của bạn: ");
+                    msg.type = CHOICE_ANSWER;
+                    scanf(" %[^\n]", msg.value);
+                    send(sockfd, &msg, sizeof(msg), 0);
+                    break;
+                case CORRECT_ANSWER:
+                    printf("Đúng rồi! %s\n", msg.value);
+                    break;
+                case WIN:
+                    printf("Bạn đã thắng! %s\n", msg.value);
+                    return 1;
+                case LOSE:
+                    printf("Bạn đã thua! Đáp án đúng: %s\n", msg.value);
+                    return 1;
+                default:
+                    printf("Nhận được tin nhắn không xác định từ server.\n");
+                    break;
             }
         }
     }
@@ -420,7 +420,11 @@ int play_alone()
        printf("Usage: %s <server_ip> <server_port>\n", argv[0]);
        exit(0);
    }
-    connect_to_server(argv[1],atoi(argv[2]));
+    
+    if (connect_to_server(argv[1],atoi(argv[2])) == 0)
+    {
+      return 0;
+    }
     
     show_menu_not_login();
     return 0;
