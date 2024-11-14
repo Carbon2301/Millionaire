@@ -251,56 +251,48 @@ int change_password(char password[]){
        }
        break;
      case 2:
-       msg.type = SIGNUP;
+       // Bước 1: Yêu cầu người dùng nhập username và password
        printf("Username: ");
        scanf(" %[^\n]", username);
-       strcpy(msg.value, username);
-       strcpy(msg.data_type, "string");
-       if (send(sockfd, &msg, sizeof(msg), 0) < 0)
-       {
-         printf("Gửi dữ liệu không thành công\n");
-       }
-       else
-       {
-         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-         if (recvBytes < 0)
-         {
-           printf("Nhận dữ liệu không thành công\n");
-         }
-         else
-         {
-           if (msg.type == ACCOUNT_EXIST)
-           {
-             printf("%s!\n", msg.value);
-             break;
-           }
-         }
-       }
        printf("Password: ");
        scanf(" %[^\n]", password);
-       strcat(msg.value, " ");
-       strcat(msg.value, password);
-       msg.length = strlen(msg.value);
-       if (send(sockfd, &msg, sizeof(msg), 0) < 0)
-       {
-         printf("Gửi dữ liệu không thành công\n");
+
+       // Bước 2: Kiểm tra độ dài của username và password để tránh lỗi tràn bộ đệm
+       if (strlen(username) + 1 + strlen(password) >= sizeof(msg.value)) {
+         printf("Tên đăng nhập hoặc mật khẩu quá dài\n");
+         break;
        }
-       else
-       {
-         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-         if (recvBytes < 0)
-         {
-           printf("Nhận dữ liệu không thành công\n");
-         }
-         else
-         {
-           if (msg.type == SIGNUP_SUCCESS)
-           {
-             printf("%s\n", msg.value);
-           }
+
+       // Bước 3: Đặt thông tin vào msg trước khi gửi đi
+       msg.type = SIGNUP;
+       strcpy(msg.data_type, "string");
+
+       // Nối username và password vào msg.value với khoảng trắng ở giữa
+       snprintf(msg.value, sizeof(msg.value), "%s %s", username, password);
+       msg.length = strlen(msg.value);
+
+       // Bước 4: Gửi thông điệp chứa cả username và password
+       if (send(sockfd, &msg, sizeof(msg), 0) < 0) {
+         perror("Gửi dữ liệu không thành công");
+         break;
+       }
+
+       // Bước 5: Nhận phản hồi từ server
+       recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+       if (recvBytes < 0) {
+         perror("Nhận dữ liệu không thành công");
+       } else if (recvBytes == 0) {
+         printf("Kết nối bị đóng từ server\n");
+       } else {
+         // Kiểm tra loại phản hồi
+         if (msg.type == ACCOUNT_EXIST) {
+           printf("Tài khoản đã tồn tại: %s\n", msg.value);
+         } else if (msg.type == SIGNUP_SUCCESS) {
+           printf("Đăng ký thành công: %s\n", msg.value);
          }
        }
        break;
+
      case 3:
        printf("Trở về\n");
        msg.type = DISCONNECT;
