@@ -167,23 +167,21 @@ Question get_questions(){
   return questions;
 }
 
-int fifty_fifty(Question q, int level, int incorrect_answers[2]){
-  srand(time(0));
-  int i, j, incorrect;
-  for (i = 0; i < 2; i++) {
-    incorrect = rand() % 4 + 1;
-    while (incorrect == q.answer[level - 1]) {
-      incorrect = rand() % 4 + 1;
-    }
-    incorrect_answers[i] = incorrect;
-    for (j = 0; j < i; j++) {
-      if (incorrect_answers[j] == incorrect) {
-        i--;
-        break;
-      }
-    }
-  }
-  return 1;
+int fifty_fifty(Question q, int level, int answers[2]) {
+    srand(time(0));
+    int correct_answer = q.answer[level - 1]; // Đáp án đúng
+    int incorrect_answer;
+
+    // Chọn ngẫu nhiên một đáp án sai khác đáp án đúng
+    do {
+        incorrect_answer = rand() % 4 + 1;  // Tạo một đáp án sai ngẫu nhiên từ 1 đến 4
+    } while (incorrect_answer == correct_answer);
+
+    // Đặt đáp án đúng vào `answers[0]` và đáp án sai vào `answers[1]`
+    answers[0] = correct_answer;
+    answers[1] = incorrect_answer;
+
+    return 1;
 }
 
 int call_phone(Question q, int level){
@@ -411,7 +409,7 @@ int change_password(char username[], char new_password[])
 
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
     char str[100];
-    int dap_an;
+    int answer;
 
     switch (msg.type)
     {
@@ -421,9 +419,19 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       printf("[%d]: Over time\n", conn_fd);
       break;
 
+     case FIFTY_FIFTY:
+        // Xử lý trợ giúp 50/50
+        printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
+        int answers[2];
+        fifty_fifty(*questions, level, answers);
+        msg.type = FIFTY_FIFTY;
+        snprintf(msg.value, sizeof(msg.value), "Lựa chọn: %d hoặc %d", answers[0], answers[1]);
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+
     case CHOICE_ANSWER:
-      dap_an = atoi(strtok(msg.value, "|"));
-      if (dap_an == 0){
+      answer = atoi(strtok(msg.value, "|"));
+      if (answer == 0){
         sleep(1);
         msg.type = STOP_GAME;
       if(level <= 1){
@@ -441,7 +449,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         break;
       }
       }
-      else if (questions->answer[level - 1] == dap_an)
+      else if (questions->answer[level - 1] == answer)
       {
         sleep(1);
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
@@ -483,9 +491,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         break;
         }
       }
-      break;
-    case FIFTY_FIFTY:
-      help(FIFTY_FIFTY, questions, level, conn_fd);
       break;
     case CALL_PHONE:
       help(CALL_PHONE, questions, level, conn_fd);

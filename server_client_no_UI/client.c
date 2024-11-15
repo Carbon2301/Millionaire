@@ -76,7 +76,7 @@ Account acc;
    {
      printf("\nMenu:\n");
      printf("\t1. Thay đổi mật khẩu.\n");
-     printf("\t2. Chơi đơn\n");
+     printf("\t2. Chơi đơn - Nhấn 0 để xin dừng cuộc chơi, nhấn 1 -> 4 để trả lời câu hỏi!\n");
      printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
      printf("\t4. Đăng xuất.\n");
      printf("Lựa chọn của bạn là: ");
@@ -386,23 +386,76 @@ int play_alone() {
             switch (msg.type) {
                 case QUESTION:
                     printf("%s\n", msg.value);
-                    printf("Đáp án của bạn: ");
-                    msg.type = CHOICE_ANSWER;
-                    scanf(" %[^\n]", msg.value);
-                    send(sockfd, &msg, sizeof(msg), 0);
+                    printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời, 5: Trợ giúp 50/50): ");
+                    int answer;
+                    scanf("%d", &answer);
+
+                    if (answer == 0) {
+                        msg.type = STOP_GAME;
+                        send(sockfd, &msg, sizeof(msg), 0);
+                        printf("Bạn đã dừng cuộc chơi!\n");
+                        return 1;
+                    } else if (answer == 5) {
+                        // Yêu cầu trợ giúp 50/50
+                        msg.type = FIFTY_FIFTY;
+                        send(sockfd, &msg, sizeof(msg), 0);
+
+                        // Nhận gợi ý 50/50 từ server
+                        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+                        if (msg.type == FIFTY_FIFTY) {
+                            printf("Gợi ý 50/50: Chọn 1 trong 2 phương án sau: %s\n", msg.value);
+                            printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                            scanf("%d", &answer);
+
+                            if (answer == 0) {
+                                msg.type = STOP_GAME;
+                                send(sockfd, &msg, sizeof(msg), 0);
+                                printf("Bạn đã dừng cuộc chơi!\n");
+                                return 1;
+                            }
+
+                            // Gửi đáp án cuối cùng sau khi nhận trợ giúp 50/50
+                            msg.type = CHOICE_ANSWER;
+                            snprintf(msg.value, sizeof(msg.value), "%d", answer);
+                            send(sockfd, &msg, sizeof(msg), 0);
+
+                            // Chờ phản hồi từ server mà không nhận lại câu hỏi
+                            recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+                            if (msg.type == CORRECT_ANSWER) {
+                                printf("Đúng rồi! %s\n", msg.value);
+                            } else if (msg.type == WIN) {
+                                printf("Bạn đã thắng! %s\n", msg.value);
+                                return 1;
+                            } else if (msg.type == LOSE) {
+                                printf("Bạn đã thua! %s\n", msg.value);
+                                return 1;
+                            }
+                            continue;  // Bỏ qua việc nhận lại câu hỏi
+                        }
+                    } else {
+                        // Trả lời câu hỏi bình thường
+                        msg.type = CHOICE_ANSWER;
+                        snprintf(msg.value, sizeof(msg.value), "%d", answer);
+                        send(sockfd, &msg, sizeof(msg), 0);
+                    }
                     break;
+
                 case STOP_GAME:
                     printf("Bạn đã dừng cuộc chơi! %s\n", msg.value);
                     return 1;
+
                 case CORRECT_ANSWER:
                     printf("Đúng rồi! %s\n", msg.value);
                     break;
+
                 case WIN:
                     printf("Bạn đã thắng! %s\n", msg.value);
                     return 1;
+
                 case LOSE:
                     printf("Bạn đã thua! %s\n", msg.value);
                     return 1;
+
                 default:
                     printf("Nhận được tin nhắn không xác định từ server.\n");
                     break;
