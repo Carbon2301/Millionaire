@@ -518,6 +518,3 @@ int play_alone() {
     return 0;
 }
 
-
- 
- 
