@@ -185,6 +185,7 @@ int fifty_fifty(Question q, int level, int answers[2]) {
 }
 
 int call_phone(Question q, int level){
+  srand(time(0));
   return q.answer[level - 1];
 }
 
@@ -425,10 +426,18 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         int answers[2];
         fifty_fifty(*questions, level, answers);
         msg.type = FIFTY_FIFTY;
-        snprintf(msg.value, sizeof(msg.value), "Lựa chọn: %d hoặc %d", answers[0], answers[1]);
+        snprintf(msg.value, sizeof(msg.value), "%d hoặc %d", answers[0], answers[1]);
         send(conn_fd, &msg, sizeof(msg), 0);
         break;
-
+    case CALL_PHONE:
+      printf("[%d]: CLient yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
+      int phone_answer[1];
+      phone_answer[0] = call_phone(*questions, level);  
+      msg.type = CALL_PHONE;
+      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Chỉ gửi một số điện thoại
+      send(conn_fd, &msg, sizeof(msg), 0);
+      break;
+    
     case CHOICE_ANSWER:
       answer = atoi(strtok(msg.value, "|"));
       if (answer == 0){
@@ -492,9 +501,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         }
       }
       break;
-    case CALL_PHONE:
-      help(CALL_PHONE, questions, level, conn_fd);
-      break;
+    
     case CHANGE_QUESTION:
       help(CHANGE_QUESTION, questions, level, conn_fd);
       break;
@@ -563,22 +570,22 @@ int help(int type, Question *questions, int level, int conn_fd){
 
   switch (type)
   {
-    case FIFTY_FIFTY:
-      printf("[%d]: 50_50 question %d\n", conn_fd, level);
-      fifty_fifty(*questions, level, incorrect_answer);
-      msg.type = FIFTY_FIFTY;
-      sprintf(str, "%d %d", incorrect_answer[0], incorrect_answer[1]);
-      strcpy(msg.value, str);
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
-    case CALL_PHONE:
-      printf("[%d]: Call phone question %d\n", conn_fd, level);
-      msg.type = CALL_PHONE;
-      int answer = call_phone(*questions, level);
-      sprintf(str, "%d", answer);
-      strcpy(msg.value, str);
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
+    // case FIFTY_FIFTY:
+    //   printf("[%d]: 50_50 question %d\n", conn_fd, level);
+    //   fifty_fifty(*questions, level, incorrect_answer);
+    //   msg.type = FIFTY_FIFTY;
+    //   sprintf(str, "%d %d", incorrect_answer[0], incorrect_answer[1]);
+    //   strcpy(msg.value, str);
+    //   send(conn_fd, &msg, sizeof(msg), 0);
+    //   break;
+    // case CALL_PHONE:
+    //   printf("[%d]: Call phone question %d\n", conn_fd, level);
+    //   msg.type = CALL_PHONE;
+    //   int answer = call_phone(*questions, level);
+    //   sprintf(str, "%d", answer);
+    //   strcpy(msg.value, str);
+    //   send(conn_fd, &msg, sizeof(msg), 0);
+    //   break;
     case CHANGE_QUESTION:
       printf("[%d]: Changed question %d\n", conn_fd, level);
       change_question(questions, level);
