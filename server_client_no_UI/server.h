@@ -567,36 +567,6 @@ recvLabel:
   return 1;
 }
 
-int help(int type, Question *questions, int level, int conn_fd){
-  Message msg;
-  int incorrect_answer[2];
-  char str[100];
-
-  switch (type)
-  {
-    // case FIFTY_FIFTY:
-    //   printf("[%d]: 50_50 question %d\n", conn_fd, level);
-    //   fifty_fifty(*questions, level, incorrect_answer);
-    //   msg.type = FIFTY_FIFTY;
-    //   sprintf(str, "%d %d", incorrect_answer[0], incorrect_answer[1]);
-    //   strcpy(msg.value, str);
-    //   send(conn_fd, &msg, sizeof(msg), 0);
-    //   break;
-    // case CALL_PHONE:
-    //   printf("[%d]: Call phone question %d\n", conn_fd, level);
-    //   msg.type = CALL_PHONE;
-    //   int answer = call_phone(*questions, level);
-    //   sprintf(str, "%d", answer);
-    //   strcpy(msg.value, str);
-    //   send(conn_fd, &msg, sizeof(msg), 0);
-    //   break;
-    case CHANGE_QUESTION:
-      printf("[%d]: Changed question %d\n", conn_fd, level);
-      change_question(questions, level);
-      break;
-  }
-  return 1;
-}
 
 void *thread_start(void *client_fd)
 {
