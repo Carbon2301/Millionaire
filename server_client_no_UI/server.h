@@ -430,11 +430,18 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         send(conn_fd, &msg, sizeof(msg), 0);
         break;
     case CALL_PHONE:
-      printf("[%d]: CLient yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
+      printf("[%d]: Client yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
       int phone_answer[1];
       phone_answer[0] = call_phone(*questions, level);  
       msg.type = CALL_PHONE;
       snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Chỉ gửi một số điện thoại
+      send(conn_fd, &msg, sizeof(msg), 0);
+      break;
+
+    case CHANGE_QUESTION:
+      printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
+      change_question(questions, level);
+      msg.type = CHANGE_QUESTION;
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
     
@@ -502,9 +509,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       }
       break;
     
-    case CHANGE_QUESTION:
-      help(CHANGE_QUESTION, questions, level, conn_fd);
-      break;
     default:
       break;
     }

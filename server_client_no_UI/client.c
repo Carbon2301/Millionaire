@@ -7,6 +7,7 @@ struct sockaddr_in server, client;
 Account acc;
 int fifty_fifty_used = 0;
 int call_phone_used = 0;
+int change_question_used = 0;
 
  int is_number(const char *s)
  {
@@ -375,6 +376,8 @@ int play_alone() {
     printf("Bạn chọn chơi đơn. Hãy trả lời các câu hỏi dưới đây để nhận phần thưởng!\n");
     Message msg;
     fifty_fifty_used = 0; // Reset số lần sử dụng 50/50 khi bắt đầu chơi
+    call_phone_used = 0; //Reset số lần sử dụng call_phone khi bắt đầu chơi
+    change_question_used = 0; //Reset số lần sử dụng change_question khi bắt đầu chơi
 
     while (1) {
         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
@@ -538,6 +541,75 @@ int play_alone() {
                             }
                             continue;  // Bỏ qua việc nhận lại câu hỏi
                         }
+                    } else if (answer == 7) {
+                    // Kiểm tra xem người chơi đã dùng trợ giúp đổi câu hỏi chưa
+                    if (change_question_used > 0) {
+                        printf("Bạn đã hết quyền sử dụng đổi câu hỏi!\n");
+                        printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                        scanf("%d", &answer);
+
+                        if (answer == 0) {
+                            msg.type = STOP_GAME;
+                            send(sockfd, &msg, sizeof(msg), 0);
+                            printf("Bạn đã dừng cuộc chơi!\n");
+                            return 1;
+                        }
+
+                        // Gửi đáp án cuối cùng sau khi không sử dụng được trợ giúp
+                        msg.type = CHOICE_ANSWER;
+                        snprintf(msg.value, sizeof(msg.value), "%d", answer);
+                        send(sockfd, &msg, sizeof(msg), 0);
+
+                        // Nhận phản hồi từ server
+                        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+                        if (msg.type == CORRECT_ANSWER) {
+                            printf("Đúng rồi! %s\n", msg.value);
+                        } else if (msg.type == WIN) {
+                            printf("Bạn đã thắng! %s\n", msg.value);
+                            return 1;
+                        } else if (msg.type == LOSE) {
+                            printf("Bạn đã thua! %s\n", msg.value);
+                            return 1;
+                        }
+                        continue; // Bỏ qua việc nhận lại câu hỏi
+                    }
+
+                        // Nếu chưa dùng trợ giúp, xử lý trợ giúp đổi câu hỏi
+                        msg.type = CHANGE_QUESTION;
+                        send(sockfd, &msg, sizeof(msg), 0);
+                        change_question_used++; // Đánh dấu đã sử dụng
+
+                        // Nhận câu hỏi mới từ server
+                        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+                        if (recvBytes > 0 && msg.type == QUESTION) {
+                            printf("Câu hỏi mới: %s\n", msg.value);
+                            printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                            scanf("%d", &answer);
+
+                            if (answer == 0) {
+                                msg.type = STOP_GAME;
+                                send(sockfd, &msg, sizeof(msg), 0);
+                                printf("Bạn đã dừng cuộc chơi!\n");
+                                return 1;
+                            }
+
+                            // Gửi đáp án cuối cùng sau khi nhận câu hỏi mới
+                            msg.type = CHOICE_ANSWER;
+                            snprintf(msg.value, sizeof(msg.value), "%d", answer);
+                            send(sockfd, &msg, sizeof(msg), 0);
+
+                            // Nhận phản hồi từ server
+                            recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+                            if (msg.type == CORRECT_ANSWER) {
+                                printf("Đúng rồi! %s\n", msg.value);
+                            } else if (msg.type == WIN) {
+                                printf("Bạn đã thắng! %s\n", msg.value);
+                                return 1;
+                            } else if (msg.type == LOSE) {
+                                printf("Bạn đã thua! %s\n", msg.value);
+                                return 1;
+                            }
+                        } 
                     }
                     else {
                         // Trả lời câu hỏi bình thường
