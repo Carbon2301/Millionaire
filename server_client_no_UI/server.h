@@ -81,6 +81,7 @@ typedef struct _question
   char d[15][BUFF_SIZE];
   int answer[15];
   int reward[15];
+  int id[15];
 } Question;
 
 pthread_mutex_t mutex;
@@ -92,8 +93,7 @@ int execute_query(char *query);
 Question get_questions();
 int fifty_fifty(Question q, int level, int incorrect_answer[2]);
 int call_phone(Question q, int level);
-int change_question(Question *q, int level);
-int help(int type, Question *questions, int level, int conn_fd);
+int change_question(Question *q, int level, int id);
 Client *new_client();
 void catch_ctrl_c_and_exit(int sig);
 void add_client(int conn_fd);
@@ -104,7 +104,7 @@ void *thread_start(void *client_fd);
 int login(int conn_fd, char msg_data[BUFF_SIZE]);
 int signup(char username[BUFF_SIZE], char password[BUFF_SIZE]);
 int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
-int handle_play_game(Message msg, int conn_fd, Question *questions, int level);
+int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id);
 int handle_play_alone(int);
 
 /*---------------- Tính năng -------------------*/
@@ -149,7 +149,7 @@ Question get_questions(){
 
   for (int i = 0; i < 15; i++)
   {
-    sprintf(query, "SELECT question, a, b, c, d, answer, reward FROM questions WHERE level = %d ORDER BY RAND() LIMIT 1", i + 1);
+    sprintf(query, "SELECT question, a, b, c, d, answer, reward, id FROM questions WHERE level = %d ORDER BY RAND() LIMIT 1", i + 1);
     execute_query(query);
     res = mysql_store_result(conn);
     row = mysql_fetch_row(res);
@@ -160,6 +160,7 @@ Question get_questions(){
     strcpy(questions.d[i], row[4]);
     questions.answer[i] = atoi(row[5]);
     questions.reward[i] = atoi(row[6]);
+    questions.id[i] = atoi(row[7]);
     mysql_free_result(res);
   }
 
@@ -189,12 +190,17 @@ int call_phone(Question q, int level){
   return q.answer[level - 1];
 }
 
-int change_question(Question *q, int level) {
+int change_question(Question *q, int level, int id) {
   MYSQL_RES *res;
   MYSQL_ROW row;
 
   char query[1000];
-  sprintf(query, "SELECT question, a, b, c, d, answer, reward FROM questions WHERE level = %d ORDER BY RAND() LIMIT 1", level);
+  sprintf(query, 
+          "SELECT question, a, b, c, d, answer, reward, id "
+          "FROM questions "
+          "WHERE level = %d AND id != %d "
+          "ORDER BY RAND() LIMIT 1", 
+          level, id);
   execute_query(query);
   res = mysql_store_result(conn);
   if((row = mysql_fetch_row(res)) != NULL){
@@ -205,6 +211,7 @@ int change_question(Question *q, int level) {
     strcpy(q->d[level - 1], row[4]);
     q->answer[level - 1] = atoi(row[5]);
     q->reward[level - 1] = atoi(row[6]);
+    q->id[level-1] = atoi(row[7]);
     mysql_free_result(res);
   }
   else {
@@ -408,7 +415,7 @@ int change_password(char username[], char new_password[])
   return re;
 }
 
-int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
+int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id){
     char str[100];
     int answer;
 
@@ -440,7 +447,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
 
     case CHANGE_QUESTION:
       printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
-      change_question(questions, level);
+      change_question(questions, level, id);
       msg.type = CHANGE_QUESTION;
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
@@ -474,12 +481,12 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         {
           msg.type = WIN;
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: Win\n", conn_fd);
+          printf("[%d]: Bạn đã thắng!\n", conn_fd);
         }
         else{
           msg.type = CORRECT_ANSWER;
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: Correct answer question %d\n", conn_fd, level );
+          printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, level );
           return 0;
         }
       }
@@ -491,19 +498,19 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Lose\n", conn_fd);
+        printf("[%d]: Bạn đã thua\n", conn_fd);
         break;
         } else if (level <= 10) {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Lose\n", conn_fd);
+        printf("[%d]: Bạn đã thua\n", conn_fd);
         break;
         } else {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Lose\n", conn_fd);
+        printf("[%d]: Bạn đã thua\n", conn_fd);
         break;
         }
       }
@@ -523,6 +530,7 @@ int handle_play_alone(int conn_fd)
   char str[2048];
   int level = 0;
   int re;
+  int id;
 
   while (level < 15)
   {
@@ -548,16 +556,16 @@ recvLabel:
     {
     case OVER_TIME:
     case STOP_GAME:
-      handle_play_game(msg, conn_fd, &questions, level);
+      handle_play_game(msg, conn_fd, &questions, level, id);
       return 0;
     case CHOICE_ANSWER:
-      re = handle_play_game(msg, conn_fd, &questions, level);
+      re = handle_play_game(msg, conn_fd, &questions, level, id);
       if(re == 0) continue;
       return 0;
     case FIFTY_FIFTY:
     case CALL_PHONE:
     case CHANGE_QUESTION:
-      handle_play_game(msg, conn_fd, &questions, level);
+      handle_play_game(msg, conn_fd, &questions, level, id);
       level--;
       goto initQuestion;
     default:
@@ -600,11 +608,11 @@ void *thread_start(void *client_fd)
 
       if (re == SAME_OLD_PASSWORD) {
           snprintf(response_message, sizeof(response_message), "Mật khẩu mới trùng với mật khẩu cũ!");
-          printf("[%d] Mật khẩu mới trùng với mật khẩu cũ!\n", conn_fd, cli->login_account);
+          printf("[%d] Mật khẩu mới trùng với mật khẩu cũ!\n", conn_fd);
       } 
       else if (re == CHANGE_PASSWORD_SUCCESS) {
           snprintf(response_message, sizeof(response_message), "Thay đổi mật khẩu thành công!");
-          printf("[%d] Thay đổi mật khẩu thành công!\n", conn_fd, cli->login_account);
+          printf("[%d] Thay đổi mật khẩu thành công!\n", conn_fd);
       }
       strncpy(msg.value, response_message, sizeof(msg.value) - 1);
       msg.type = re;
@@ -635,7 +643,7 @@ void *thread_start(void *client_fd)
         else if (re == LOGGED_IN)
         {
           msg.type = LOGGED_IN;
-          printf("[%d] Tài khoản đã được đăng nhập\n", conn_fd);
+          printf("[%d] Tài khoản đã được đăng nhập ở nơi khác!\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == ACCOUNT_BLOCKED)
