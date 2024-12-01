@@ -107,7 +107,7 @@ int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level);
 int handle_play_alone(int);
 
-/*---------------- T�nh nang -------------------*/
+/*---------------- Tính năng -------------------*/
 int connect_to_database()
 {
   char server[50], username[50], password[50], database[50];
@@ -169,15 +169,15 @@ Question get_questions(){
 
 int fifty_fifty(Question q, int level, int answers[2]) {
     srand(time(0));
-    int correct_answer = q.answer[level - 1]; // ��p �n d�ng
+    int correct_answer = q.answer[level - 1]; // Đáp án đúng
     int incorrect_answer;
 
-    // Ch?n ng?u nhi�n m?t d�p �n sai kh�c d�p �n d�ng
+    // Chọn ngẫu nhiên một đáp án sai khác đáp án đúng
     do {
-        incorrect_answer = rand() % 4 + 1;  // T?o m?t d�p �n sai ng?u nhi�n t? 1 d?n 4
+        incorrect_answer = rand() % 4 + 1;  // Tạo một đáp án sai ngẫu nhiên từ 1 đến 4
     } while (incorrect_answer == correct_answer);
 
-    // �?t d�p �n d�ng v�o `answers[0]` v� d�p �n sai v�o `answers[1]`
+    // Đặt đáp án đúng vào `answers[0]` và đáp án sai vào `answers[1]`
     answers[0] = correct_answer;
     answers[1] = incorrect_answer;
 
@@ -290,10 +290,10 @@ int is_number(const char *s)
   while (*s != '\0')
   {
     if (!isdigit((unsigned char)*s))
-      return 0; // string is not number
+      return 0; 
     s++;
   }
-  return 1; // string is number
+  return 1; 
 }
 
 int login(int conn_fd, char msg_data[BUFF_SIZE])
@@ -421,25 +421,25 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       break;
 
      case FIFTY_FIFTY:
-        // X? l� tr? gi�p 50/50
-        printf("[%d]: Client y�u c?u tr? gi�p 50/50 cho c�u h?i %d\n", conn_fd, level);
+        // Xử lý trợ giúp 50/50
+        printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
         int answers[2];
         fifty_fifty(*questions, level, answers);
         msg.type = FIFTY_FIFTY;
-        snprintf(msg.value, sizeof(msg.value), "%d v� %d", answers[0], answers[1]);
+        snprintf(msg.value, sizeof(msg.value), "%d và %d", answers[0], answers[1]);
         send(conn_fd, &msg, sizeof(msg), 0);
         break;
     case CALL_PHONE:
-      printf("[%d]: Client y�u c?u tr? gi�p g?i di?n tho?i cho ngu?i th�n c�u h?i %d\n", conn_fd, level);
+      printf("[%d]: Client yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
       int phone_answer[1];
       phone_answer[0] = call_phone(*questions, level);  
       msg.type = CALL_PHONE;
-      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Ch? g?i m?t s? di?n tho?i
+      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Chỉ gửi một số điện thoại
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
 
     case CHANGE_QUESTION:
-      printf("[%d]: Client y�u c?u tr? gi�p d?i c�u h?i %d\n", conn_fd, level);
+      printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
       change_question(questions, level);
       msg.type = CHANGE_QUESTION;
       send(conn_fd, &msg, sizeof(msg), 0);
@@ -451,14 +451,14 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         sleep(1);
         msg.type = STOP_GAME;
       if(level <= 1){
-        sprintf(str, "��p �n: %d\nS? ti?n thu?ng c?a b?n: 0", questions->answer[level - 1]);
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Stopped play\n", conn_fd);
         break;
       }
       else {
-        sprintf(str, "��p �n: %d\nS? ti?n thu?ng c?a b?n: %d", questions->answer[level - 1], questions->reward[level - 2]);
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 2]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Stopped play\n", conn_fd);
@@ -468,7 +468,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       else if (questions->answer[level - 1] == answer)
       {
         sleep(1);
-        sprintf(str, "��p �n: %d\nS? ti?n thu?ng c?a b?n: %d", questions->answer[level - 1], questions->reward[level - 1]);
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
         {
@@ -488,19 +488,19 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         sleep(1);
         msg.type = LOSE;
         if (level <= 5) {
-        sprintf(str, "��p �n: %d\nS? ti?n thu?ng c?a b?n: 0", questions->answer[level - 1]);
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Lose\n", conn_fd);
         break;
         } else if (level <= 10) {
-        sprintf(str, "��p �n: %d\nS? ti?n thu?ng c?a b?n: 2000", questions->answer[level - 1]);
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Lose\n", conn_fd);
         break;
         } else {
-        sprintf(str, "��p �n: %d\nS? ti?n thu?ng c?a b?n: 22000", questions->answer[level - 1]);
+        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Lose\n", conn_fd);
@@ -531,7 +531,7 @@ initQuestion:
     sprintf(str, "%d", level + 1);
     strcpy(msg.value, str);
     msg.type = QUESTION;
-    snprintf(str, sizeof(str), "C�u %d: %s\n", level + 1, questions.question[level]);
+    snprintf(str, sizeof(str), "Câu %d: %s\n", level + 1, questions.question[level]);
     strcpy(msg.value, str); 
 
     snprintf(str, sizeof(str), "A. %s\nB. %s\nC. %s\nD. %s\n",
@@ -593,19 +593,26 @@ void *thread_start(void *client_fd)
     case AUTH:
       switch (msg.type)
       {
-      case CHANGE_PASSWORD:
-        re = change_password(cli->login_account, msg.value);
+    case CHANGE_PASSWORD:
+      re = change_password(cli->login_account, msg.value);
 
-        if (re == SAME_OLD_PASSWORD)
-          printf("[%d] %s's password is the same as old password.\n", conn_fd, cli->login_account);
-        else if (re == CHANGE_PASSWORD_SUCCESS)
-          printf("[%d] %s's password is changed.\n", conn_fd, cli->login_account);
+      char response_message[256];
 
-        msg.type = re;
-        send(conn_fd, &msg, sizeof(msg), 0);
-        break;
+      if (re == SAME_OLD_PASSWORD) {
+          snprintf(response_message, sizeof(response_message), "Mật khẩu mới trùng với mật khẩu cũ!");
+          printf("[%d] Mật khẩu mới trùng với mật khẩu cũ!\n", conn_fd, cli->login_account);
+      } 
+      else if (re == CHANGE_PASSWORD_SUCCESS) {
+          snprintf(response_message, sizeof(response_message), "Thay đổi mật khẩu thành công!");
+          printf("[%d] Thay đổi mật khẩu thành công!\n", conn_fd, cli->login_account);
+      }
+      strncpy(msg.value, response_message, sizeof(msg.value) - 1);
+      msg.type = re;
+      send(conn_fd, &msg, sizeof(msg), 0);
+      break;
+
       case PLAY_ALONE:
-        printf("[%d]: '%s' dang choi don!\n", conn_fd, cli->login_account);
+        printf("[%d]: '%s' đang chơi đơn!\n", conn_fd, cli->login_account);
         handle_play_alone(conn_fd);
         break;
       case LOGOUT:
@@ -622,31 +629,31 @@ void *thread_start(void *client_fd)
         if (re == LOGIN_SUCCESS)
         {
           msg.type = LOGIN_SUCCESS;
-          printf("[%d]: �ang nh?p th�nh c�ng!\n", conn_fd);
+          printf("[%d] Đăng nhập thành công!\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == LOGGED_IN)
         {
           msg.type = LOGGED_IN;
-          printf("[%d] T�i kho?n d� du?c dang nh?p\n", conn_fd);
+          printf("[%d] Tài khoản đã được đăng nhập\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == ACCOUNT_BLOCKED)
         {
           msg.type = ACCOUNT_BLOCKED;
-          printf("[%d] T�i kho?n d� b? kh�a\n", conn_fd);
+          printf("[%d] Tài khoản đã bị khóa\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == ACCOUNT_NOT_EXIST)
         {
           msg.type = ACCOUNT_NOT_EXIST;
-          printf("[%d] T�i kho?n kh�ng t?n t?i\n", conn_fd);
+          printf("[%d] Tài khoản không tồn tại\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == WRONG_PASSWORD)
         {
           msg.type = WRONG_PASSWORD;
-          printf("[%d] Sai m?t kh?u\n", conn_fd);
+          printf("[%d] Sai mật khẩu\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         break;
@@ -662,13 +669,13 @@ void *thread_start(void *client_fd)
           if (re == SIGNUP_SUCCESS)
           {
             msg.type = SIGNUP_SUCCESS;
-            printf("[%d]: �ang k� th�nh c�ng!\n", conn_fd);
+            printf("[%d]: Đăng ký thành công!\n", conn_fd);
             send(conn_fd, &msg, sizeof(msg), 0);
           }
           else if (re == ACCOUNT_EXIST)
           {
             msg.type = ACCOUNT_EXIST;
-            printf("[%d] T�i kho?n d� t?n t?i\n", conn_fd);
+            printf("[%d] Tài khoản đã tồn tại\n", conn_fd);
             send(conn_fd, &msg, sizeof(msg), 0);
           }
         }
@@ -678,7 +685,7 @@ void *thread_start(void *client_fd)
   }
   if (recvBytes <= 0)
   {
-    printf("[%d]: Client d� ng?t k?t n?i!\n", conn_fd);
+    printf("[%d]: Client đã ngắt kết nối!\n", conn_fd);
     close(conn_fd);
     delete_client(conn_fd);
   }
@@ -686,4 +693,4 @@ void *thread_start(void *client_fd)
   pthread_exit(NULL);
 }
 
-#endif // SERVER_H
+#endif 
