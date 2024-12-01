@@ -78,7 +78,12 @@ int change_question_used = 0;
    {
      printf("\nMenu:\n");
      printf("\t1. Thay đổi mật khẩu.\n");
-     printf("\t2. Chơi đơn - Nhấn 0 để xin dừng cuộc chơi, nhấn 1 -> 4 để trả lời câu hỏi!\n");
+     printf("\t2. Chơi đơn. Khi vào chơi, lưu ý: \n");
+     printf("\t\t'0': Xin dừng cuộc chơi\n");
+     printf("\t\t'1 -> 4': Trả lời câu hỏi\n");
+     printf("\t\t'5': Trợ giúp 50/50\n");
+     printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
+     printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
      printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
      printf("\t4. Đăng xuất.\n");
      printf("Lựa chọn của bạn là: ");
@@ -392,7 +397,7 @@ int play_alone() {
             switch (msg.type) {
                 case QUESTION:
                     printf("%s\n", msg.value);
-                    printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời, 5: Trợ giúp 50/50): ");
+                    printf("Nhập lựa chọn của bạn: ");
                     int answer;
                     scanf("%d", &answer);
 
@@ -405,7 +410,7 @@ int play_alone() {
                         // Kiểm tra xem người chơi đã dùng trợ giúp 50/50 chưa
                         if (fifty_fifty_used > 0) {
                             printf("Bạn đã hết quyền sử dụng 50/50!\n");
-                            printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                            printf("Nhập lựa chọn của bạn: ");
                             scanf("%d", &answer);
 
                             if (answer == 0) {
@@ -442,8 +447,8 @@ int play_alone() {
                         // Nhận gợi ý 50/50 từ server
                         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
                         if (msg.type == FIFTY_FIFTY) {
-                            printf("Gợi ý 50/50: Chọn 1 trong 2 phương án sau: %s\n", msg.value);
-                            printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                            printf("Hai phương án còn lại: %s\n", msg.value);
+                            printf("Nhập lựa chọn của bạn: ");
                             scanf("%d", &answer);
 
                             if (answer == 0) {
@@ -474,8 +479,8 @@ int play_alone() {
                     } else if (answer == 6) {
                         // Kiểm tra xem người chơi đã dùng trợ giúp call ơhone chưa
                         if (call_phone_used > 0) {
-                            printf("Bạn đã hết quyền sử dụng gọi điện thoại cho người thân!\n");
-                            printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                            printf("Bạn đã hết quyền sử dụng gọi điện cho người thân!\n");
+                            printf("Nhập lựa chọn của bạn: ");
                             scanf("%d", &answer);
 
                             if (answer == 0) {
@@ -513,7 +518,7 @@ int play_alone() {
                         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
                         if (msg.type == CALL_PHONE) {
                             printf("Câu trả lời của họ là: %s\n", msg.value);
-                            printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                            printf("Nhập lựa chọn của bạn: ");
                             scanf("%d", &answer);
 
                             if (answer == 0) {
@@ -545,7 +550,7 @@ int play_alone() {
                     // Kiểm tra xem người chơi đã dùng trợ giúp đổi câu hỏi chưa
                     if (change_question_used > 0) {
                         printf("Bạn đã hết quyền sử dụng đổi câu hỏi!\n");
-                        printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                        printf("Nhập lựa chọn của bạn: ");
                         scanf("%d", &answer);
 
                         if (answer == 0) {
@@ -583,7 +588,7 @@ int play_alone() {
                         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
                         if (recvBytes > 0 && msg.type == QUESTION) {
                             printf("Câu hỏi mới: %s\n", msg.value);
-                            printf("Đáp án của bạn (0: Dừng, 1-4: Trả lời): ");
+                            printf("Nhập lựa chọn của bạn: ");
                             scanf("%d", &answer);
 
                             if (answer == 0) {

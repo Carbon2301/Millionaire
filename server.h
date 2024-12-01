@@ -426,7 +426,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         int answers[2];
         fifty_fifty(*questions, level, answers);
         msg.type = FIFTY_FIFTY;
-        snprintf(msg.value, sizeof(msg.value), "%d hoặc %d", answers[0], answers[1]);
+        snprintf(msg.value, sizeof(msg.value), "%d và %d", answers[0], answers[1]);
         send(conn_fd, &msg, sizeof(msg), 0);
         break;
     case CALL_PHONE:
@@ -605,11 +605,11 @@ void *thread_start(void *client_fd)
         send(conn_fd, &msg, sizeof(msg), 0);
         break;
       case PLAY_ALONE:
-        printf("[%d]: %s is playing alone.\n", conn_fd, cli->login_account);
+        printf("[%d]: '%s' đang chơi đơn!\n", conn_fd, cli->login_account);
         handle_play_alone(conn_fd);
         break;
       case LOGOUT:
-        printf("[%d]: Bye %s\n", conn_fd, cli->login_account);
+        printf("[%d]: Goodbye '%s'\n", conn_fd, cli->login_account);
         cli->login_status = UN_AUTH;
         break;
       }
@@ -622,31 +622,31 @@ void *thread_start(void *client_fd)
         if (re == LOGIN_SUCCESS)
         {
           msg.type = LOGIN_SUCCESS;
-          printf("[%d]: Login success!\n", conn_fd);
+          printf("[%d]: Đăng nhập thành công!\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == LOGGED_IN)
         {
           msg.type = LOGGED_IN;
-          printf("[%d] Account is logged in\n", conn_fd);
+          printf("[%d] Tài khoản đã được đăng nhập\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == ACCOUNT_BLOCKED)
         {
           msg.type = ACCOUNT_BLOCKED;
-          printf("[%d] Account is blocked\n", conn_fd);
+          printf("[%d] Tài khoản đã bị khóa\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == ACCOUNT_NOT_EXIST)
         {
           msg.type = ACCOUNT_NOT_EXIST;
-          printf("[%d] Account not exist\n", conn_fd);
+          printf("[%d] Tài khoản không tồn tại\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == WRONG_PASSWORD)
         {
           msg.type = WRONG_PASSWORD;
-          printf("[%d] Wrong password\n", conn_fd);
+          printf("[%d] Sai mật khẩu\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         break;
@@ -662,13 +662,13 @@ void *thread_start(void *client_fd)
           if (re == SIGNUP_SUCCESS)
           {
             msg.type = SIGNUP_SUCCESS;
-            printf("[%d]: Signup success!\n", conn_fd);
+            printf("[%d]: Đăng ký thành công!\n", conn_fd);
             send(conn_fd, &msg, sizeof(msg), 0);
           }
           else if (re == ACCOUNT_EXIST)
           {
             msg.type = ACCOUNT_EXIST;
-            printf("[%d] Account exist\n", conn_fd);
+            printf("[%d] Tài khoản đã tồn tại\n", conn_fd);
             send(conn_fd, &msg, sizeof(msg), 0);
           }
         }
@@ -678,7 +678,7 @@ void *thread_start(void *client_fd)
   }
   if (recvBytes <= 0)
   {
-    printf("[%d]: Client disconnected!\n", conn_fd);
+    printf("[%d]: Client đã ngắt kết nối!\n", conn_fd);
     close(conn_fd);
     delete_client(conn_fd);
   }
