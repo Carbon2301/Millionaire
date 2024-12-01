@@ -252,6 +252,10 @@ int change_password(char password[]){
              printf("Welcome, %s\n", msg.value);
              show_menu_logged();
            }
+           else if (msg.type == ACCOUNT_BLOCKED)
+          {
+            printf("Tài khoản: '%s' đã bị khóa.\n", msg.value);
+          }
            else if(msg.type == LOGGED_IN)
            {
              printf("Tài khoản: '%s' đang được đăng nhập ở nơi khác. Vui lòng thử lại!\n", msg.value);

@@ -1,5 +1,6 @@
 #include "server.h"
 
+
 int main(int argc, char const *argv[])
 {
   if (argc != 2)
@@ -74,7 +75,7 @@ int main(int argc, char const *argv[])
       continue;
     }
 
-    printf("--------------\n");
+    printf("------------------------------------------------\n");
     printf("New connection from [%s:%d] - (%d)\n", inet_ntoa(client.sin_addr), ntohs(client.sin_port), conn_fd);
 
 
