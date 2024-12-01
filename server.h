@@ -290,10 +290,10 @@ int is_number(const char *s)
   while (*s != '\0')
   {
     if (!isdigit((unsigned char)*s))
-      return 0; // string is not number
+      return 0; 
     s++;
   }
-  return 1; // string is number
+  return 1; 
 }
 
 int login(int conn_fd, char msg_data[BUFF_SIZE])
@@ -593,17 +593,24 @@ void *thread_start(void *client_fd)
     case AUTH:
       switch (msg.type)
       {
-      case CHANGE_PASSWORD:
-        re = change_password(cli->login_account, msg.value);
+    case CHANGE_PASSWORD:
+      re = change_password(cli->login_account, msg.value);
 
-        if (re == SAME_OLD_PASSWORD)
-          printf("[%d] %s's password is the same as old password.\n", conn_fd, cli->login_account);
-        else if (re == CHANGE_PASSWORD_SUCCESS)
-          printf("[%d] %s's password is changed.\n", conn_fd, cli->login_account);
+      char response_message[256];
 
-        msg.type = re;
-        send(conn_fd, &msg, sizeof(msg), 0);
-        break;
+      if (re == SAME_OLD_PASSWORD) {
+          snprintf(response_message, sizeof(response_message), "Mật khẩu mới trùng với mật khẩu cũ!");
+          printf("[%d] Mật khẩu mới trùng với mật khẩu cũ!\n", conn_fd, cli->login_account);
+      } 
+      else if (re == CHANGE_PASSWORD_SUCCESS) {
+          snprintf(response_message, sizeof(response_message), "Thay đổi mật khẩu thành công!");
+          printf("[%d] Thay đổi mật khẩu thành công!\n", conn_fd, cli->login_account);
+      }
+      strncpy(msg.value, response_message, sizeof(msg.value) - 1);
+      msg.type = re;
+      send(conn_fd, &msg, sizeof(msg), 0);
+      break;
+
       case PLAY_ALONE:
         printf("[%d]: '%s' đang chơi đơn!\n", conn_fd, cli->login_account);
         handle_play_alone(conn_fd);
@@ -622,7 +629,7 @@ void *thread_start(void *client_fd)
         if (re == LOGIN_SUCCESS)
         {
           msg.type = LOGIN_SUCCESS;
-          printf("[%d]: Đăng nhập thành công!\n", conn_fd);
+          printf("[%d] Đăng nhập thành công!\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == LOGGED_IN)
@@ -686,4 +693,4 @@ void *thread_start(void *client_fd)
   pthread_exit(NULL);
 }
 
-#endif // SERVER_H
+#endif 
