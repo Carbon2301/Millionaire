@@ -107,7 +107,7 @@ int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level);
 int handle_play_alone(int);
 
-/*---------------- T√≠nh nƒÉng -------------------*/
+/*---------------- TÌnh nang -------------------*/
 int connect_to_database()
 {
   char server[50], username[50], password[50], database[50];
@@ -169,15 +169,15 @@ Question get_questions(){
 
 int fifty_fifty(Question q, int level, int answers[2]) {
     srand(time(0));
-    int correct_answer = q.answer[level - 1]; // ƒê√°p √°n ƒë√∫ng
+    int correct_answer = q.answer[level - 1]; // –·p ·n d˙ng
     int incorrect_answer;
 
-    // Ch·ªçn ng·∫´u nhi√™n m·ªôt ƒë√°p √°n sai kh√°c ƒë√°p √°n ƒë√∫ng
+    // Ch?n ng?u nhiÍn m?t d·p ·n sai kh·c d·p ·n d˙ng
     do {
-        incorrect_answer = rand() % 4 + 1;  // T·∫°o m·ªôt ƒë√°p √°n sai ng·∫´u nhi√™n t·ª´ 1 ƒë·∫øn 4
+        incorrect_answer = rand() % 4 + 1;  // T?o m?t d·p ·n sai ng?u nhiÍn t? 1 d?n 4
     } while (incorrect_answer == correct_answer);
 
-    // ƒê·∫∑t ƒë√°p √°n ƒë√∫ng v√†o `answers[0]` v√† ƒë√°p √°n sai v√†o `answers[1]`
+    // –?t d·p ·n d˙ng v‡o `answers[0]` v‡ d·p ·n sai v‡o `answers[1]`
     answers[0] = correct_answer;
     answers[1] = incorrect_answer;
 
@@ -421,25 +421,25 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       break;
 
      case FIFTY_FIFTY:
-        // X·ª≠ l√Ω tr·ª£ gi√∫p 50/50
-        printf("[%d]: Client y√™u c·∫ßu tr·ª£ gi√∫p 50/50 cho c√¢u h·ªèi %d\n", conn_fd, level);
+        // X? l˝ tr? gi˙p 50/50
+        printf("[%d]: Client yÍu c?u tr? gi˙p 50/50 cho c‚u h?i %d\n", conn_fd, level);
         int answers[2];
         fifty_fifty(*questions, level, answers);
         msg.type = FIFTY_FIFTY;
-        snprintf(msg.value, sizeof(msg.value), "%d ho·∫∑c %d", answers[0], answers[1]);
+        snprintf(msg.value, sizeof(msg.value), "%d v‡ %d", answers[0], answers[1]);
         send(conn_fd, &msg, sizeof(msg), 0);
         break;
     case CALL_PHONE:
-      printf("[%d]: Client y√™u c·∫ßu tr·ª£ gi√∫p g·ªçi ƒëi·ªán tho·∫°i cho ng∆∞·ªùi th√¢n c√¢u h·ªèi %d\n", conn_fd, level);
+      printf("[%d]: Client yÍu c?u tr? gi˙p g?i di?n tho?i cho ngu?i th‚n c‚u h?i %d\n", conn_fd, level);
       int phone_answer[1];
       phone_answer[0] = call_phone(*questions, level);  
       msg.type = CALL_PHONE;
-      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Ch·ªâ g·ª≠i m·ªôt s·ªë ƒëi·ªán tho·∫°i
+      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Ch? g?i m?t s? di?n tho?i
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
 
     case CHANGE_QUESTION:
-      printf("[%d]: Client y√™u c·∫ßu tr·ª£ gi√∫p ƒë·ªïi c√¢u h·ªèi %d\n", conn_fd, level);
+      printf("[%d]: Client yÍu c?u tr? gi˙p d?i c‚u h?i %d\n", conn_fd, level);
       change_question(questions, level);
       msg.type = CHANGE_QUESTION;
       send(conn_fd, &msg, sizeof(msg), 0);
@@ -451,14 +451,14 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         sleep(1);
         msg.type = STOP_GAME;
       if(level <= 1){
-        sprintf(str, "ƒê√°p √°n: %d\nS·ªë ti·ªÅn th∆∞·ªüng c·ªßa b·∫°n: 0", questions->answer[level - 1]);
+        sprintf(str, "–·p ·n: %d\nS? ti?n thu?ng c?a b?n: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Stopped play\n", conn_fd);
         break;
       }
       else {
-        sprintf(str, "ƒê√°p √°n: %d\nS·ªë ti·ªÅn th∆∞·ªüng c·ªßa b·∫°n: %d", questions->answer[level - 1], questions->reward[level - 2]);
+        sprintf(str, "–·p ·n: %d\nS? ti?n thu?ng c?a b?n: %d", questions->answer[level - 1], questions->reward[level - 2]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Stopped play\n", conn_fd);
@@ -468,7 +468,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
       else if (questions->answer[level - 1] == answer)
       {
         sleep(1);
-        sprintf(str, "ƒê√°p √°n: %d\nS·ªë ti·ªÅn th∆∞·ªüng c·ªßa b·∫°n: %d", questions->answer[level - 1], questions->reward[level - 1]);
+        sprintf(str, "–·p ·n: %d\nS? ti?n thu?ng c?a b?n: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
         {
@@ -488,19 +488,19 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level){
         sleep(1);
         msg.type = LOSE;
         if (level <= 5) {
-        sprintf(str, "ƒê√°p √°n: %d\nS·ªë ti·ªÅn th∆∞·ªüng c·ªßa b·∫°n: 0", questions->answer[level - 1]);
+        sprintf(str, "–·p ·n: %d\nS? ti?n thu?ng c?a b?n: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Lose\n", conn_fd);
         break;
         } else if (level <= 10) {
-        sprintf(str, "ƒê√°p √°n: %d\nS·ªë ti·ªÅn th∆∞·ªüng c·ªßa b·∫°n: 2000", questions->answer[level - 1]);
+        sprintf(str, "–·p ·n: %d\nS? ti?n thu?ng c?a b?n: 2000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Lose\n", conn_fd);
         break;
         } else {
-        sprintf(str, "ƒê√°p √°n: %d\nS·ªë ti·ªÅn th∆∞·ªüng c·ªßa b·∫°n: 22000", questions->answer[level - 1]);
+        sprintf(str, "–·p ·n: %d\nS? ti?n thu?ng c?a b?n: 22000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
         printf("[%d]: Lose\n", conn_fd);
@@ -531,7 +531,7 @@ initQuestion:
     sprintf(str, "%d", level + 1);
     strcpy(msg.value, str);
     msg.type = QUESTION;
-    snprintf(str, sizeof(str), "C√¢u %d: %s\n", level + 1, questions.question[level]);
+    snprintf(str, sizeof(str), "C‚u %d: %s\n", level + 1, questions.question[level]);
     strcpy(msg.value, str); 
 
     snprintf(str, sizeof(str), "A. %s\nB. %s\nC. %s\nD. %s\n",
@@ -605,11 +605,11 @@ void *thread_start(void *client_fd)
         send(conn_fd, &msg, sizeof(msg), 0);
         break;
       case PLAY_ALONE:
-        printf("[%d]: %s is playing alone.\n", conn_fd, cli->login_account);
+        printf("[%d]: '%s' dang choi don!\n", conn_fd, cli->login_account);
         handle_play_alone(conn_fd);
         break;
       case LOGOUT:
-        printf("[%d]: Bye %s\n", conn_fd, cli->login_account);
+        printf("[%d]: Goodbye '%s'\n", conn_fd, cli->login_account);
         cli->login_status = UN_AUTH;
         break;
       }
@@ -622,31 +622,31 @@ void *thread_start(void *client_fd)
         if (re == LOGIN_SUCCESS)
         {
           msg.type = LOGIN_SUCCESS;
-          printf("[%d]: Login success!\n", conn_fd);
+          printf("[%d]: –ang nh?p th‡nh cÙng!\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == LOGGED_IN)
         {
           msg.type = LOGGED_IN;
-          printf("[%d] Account is logged in\n", conn_fd);
+          printf("[%d] T‡i kho?n d„ du?c dang nh?p\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == ACCOUNT_BLOCKED)
         {
           msg.type = ACCOUNT_BLOCKED;
-          printf("[%d] Account is blocked\n", conn_fd);
+          printf("[%d] T‡i kho?n d„ b? khÛa\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == ACCOUNT_NOT_EXIST)
         {
           msg.type = ACCOUNT_NOT_EXIST;
-          printf("[%d] Account not exist\n", conn_fd);
+          printf("[%d] T‡i kho?n khÙng t?n t?i\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         else if (re == WRONG_PASSWORD)
         {
           msg.type = WRONG_PASSWORD;
-          printf("[%d] Wrong password\n", conn_fd);
+          printf("[%d] Sai m?t kh?u\n", conn_fd);
           send(conn_fd, &msg, sizeof(msg), 0);
         }
         break;
@@ -662,13 +662,13 @@ void *thread_start(void *client_fd)
           if (re == SIGNUP_SUCCESS)
           {
             msg.type = SIGNUP_SUCCESS;
-            printf("[%d]: Signup success!\n", conn_fd);
+            printf("[%d]: –ang k˝ th‡nh cÙng!\n", conn_fd);
             send(conn_fd, &msg, sizeof(msg), 0);
           }
           else if (re == ACCOUNT_EXIST)
           {
             msg.type = ACCOUNT_EXIST;
-            printf("[%d] Account exist\n", conn_fd);
+            printf("[%d] T‡i kho?n d„ t?n t?i\n", conn_fd);
             send(conn_fd, &msg, sizeof(msg), 0);
           }
         }
@@ -678,7 +678,7 @@ void *thread_start(void *client_fd)
   }
   if (recvBytes <= 0)
   {
-    printf("[%d]: Client disconnected!\n", conn_fd);
+    printf("[%d]: Client d„ ng?t k?t n?i!\n", conn_fd);
     close(conn_fd);
     delete_client(conn_fd);
   }
