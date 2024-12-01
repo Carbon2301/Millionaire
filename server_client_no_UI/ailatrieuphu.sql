@@ -3,29 +3,28 @@ SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
 
 CREATE DATABASE IF NOT EXISTS `ailatrieuphu` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE `ailatrieuphu`;
 
 CREATE TABLE `account` (
-  `id` int NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
   `password` varchar(50) NOT NULL,
-  `status` tinyint(1) NOT NULL
+  `status` tinyint(1) NOT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 INSERT INTO `account` (`id`, `username`, `password`, `status`) VALUES
-(1, 'test', 'test', 1),
-(2, 'a', 'c', 1),
-(3, 'b', 'b', 1);
+(1, 'an', 'an', 1),
+(2, 'a', 'a', 1),
+(3, 'b', 'b', 1),
+(4, 'c', 'c', 0);
 
 
 CREATE TABLE `questions` (
-  `id` int NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
   `level` int NOT NULL,
   `question` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_vi_0900_as_cs NOT NULL,
   `a` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_vi_0900_as_cs NOT NULL,
@@ -4321,31 +4320,3 @@ INSERT INTO `questions` (`id`, `level`, `question`, `a`, `b`, `c`, `d`, `answer`
 (4271, 15, 'Đau khổ vì yêu, dù sao cũng dễ chịu hơn là thiếu tình yêu là câu nói của ai?', 'Tourgeunev', 'Virgile', 'O.S. Warden', 'Krassovsky', 4, 150000),
 (4272, 15, 'Nhiệt độ cao nhất trên thế giới được ghi nhận ở đâu?', 'Thung lũng California', 'Sa mạc Sahara', 'Sa mạc Lybia', 'Sa mạc Gobi', 3, 150000);
 
--- Chỉ mục cho các bảng
-
--- Chỉ mục cho bảng `account`
-
-ALTER TABLE `account`
-  ADD PRIMARY KEY (`id`);
-
--- Chỉ mục cho bảng `questions`
-
-ALTER TABLE `questions`
-  ADD PRIMARY KEY (`id`);
-
--- AUTO_INCREMENT cho các bảng đã đổ
-
--- AUTO_INCREMENT cho bảng `account`
-
-ALTER TABLE `account`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
--- AUTO_INCREMENT cho bảng `questions`
-
-ALTER TABLE `questions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4273;
-COMMIT;
-
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
