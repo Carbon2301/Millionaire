@@ -1,52 +1,56 @@
 # Milionaire
 
 
-## Tính năng
+# Tính năng
 
 - Đăng ký, đăng nhập, đổi mật khẩu
 - Chơi đơn
 - Quyền trợ giúp
 
 
-## Chạy chương trình
+# Chạy chương trình
 
-#### _1. Server_ ####
+## 1. Config ####
 
-##### 2.1. Cài đặt MYSQL Server, library Dev MySQL #####
+### 1.1 Cài đặt MYSQL Server, library Dev MySQL #####
 ```sh
 sudo apt install mysql-server libmysqlclient-dev
 ```
 
-##### 2.2. Cấp quyền cho MySQL #####
+### 1.2 Cấp quyền cho MySQL #####
 
+Thay thế YOUR_USERNAME và YOUR_PASSWORD theo ý muốn
 ```sh
-mysql -u root -p
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'YOUR_PASSWORD';
+mysql -u YOUR_USERNAME -p
+ALTER USER 'YOUR_USERNAME'@'localhost' IDENTIFIED WITH mysql_native_password BY 'YOUR_PASSWORD';
 FLUSH PRIVILEGES;
-
 ```
-
-##### 2.4 Tạo database ailatrieuphu
+Sau khi config cho database thì đổi `YOUR_USERNAME` `YOUR_PASSWORD` trong file `config` theo config ở trên
+### 1.3 Tạo database ailatrieuphu
 
 ```sh
 mysql -u root -p
 create database ailatrieuphu;
 ```
 
-##### 2.5. Config and import database
+### 1.4 Config and import database
 
 ```sh
 mysql -u root -p ailatrieuphu < ailatrieuphu.sql 
 ```
-##### 2.6. Run Server #####
-
+## 2. Run
+### 2.1 Make project
 ```sh
 make clean
 make all
+```
+### 2.2 Server
+
+```sh
 ./server <PORT>
 ```
 
-#### _3. Client_ ####
+### 2.3 Client
 
 ```sh
 ./client <IP server> <PORT>
