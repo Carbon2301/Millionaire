@@ -483,7 +483,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
     case CHOICE_ANSWER:
       answer = atoi(strtok(msg.value, "|"));
       if (answer == 0){
-        sleep(1);
         msg.type = STOP_GAME;
       if(level <= 1){
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
@@ -502,7 +501,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else if (questions->answer[level - 1] == answer)
       {
-        sleep(1);
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
@@ -520,7 +518,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else
       {
-        sleep(1);
         msg.type = LOSE;
         if (level <= 5) {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
