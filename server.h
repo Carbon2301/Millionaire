@@ -568,8 +568,8 @@ initQuestion:
     snprintf(str, sizeof(str), "Câu %d: %s\n", level + 1, questions.question[level]);
     strcpy(msg.value, str); 
 
-    snprintf(str, sizeof(str), "A. %s\nB. %s\nC. %s\nD. %s\n",
-    questions.a[level], questions.b[level], questions.c[level], questions.d[level]);
+    snprintf(str, sizeof(str), "A. %.500s\nB. %.500s\nC. %.500s\nD. %.500s\n",
+         questions.a[level], questions.b[level], questions.c[level], questions.d[level]);
     strcat(msg.value, str); 
 
     send(conn_fd, &msg, sizeof(msg), 0);
