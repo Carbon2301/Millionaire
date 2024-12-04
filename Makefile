@@ -9,8 +9,8 @@ SERVER_SRC = server.c
 all: server client
 
 # Compile server
-server: $(SERVER_SRC)
-	$(CC) $(CFLAGS) -o server $(SERVER_SRC) $(LDFLAGS)
+server: $(SERSRC)
+	$(CC) $(CFLAGVER_S) -o server $(SERVER_SRC) $(LDFLAGS)
 
 # Compile client
 client: $(CLIENT_SRC)
