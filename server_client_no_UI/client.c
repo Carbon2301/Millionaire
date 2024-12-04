@@ -1,6 +1,78 @@
-#include "client.h"
+#include <stdio.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <ctype.h>
+#include <time.h>
 
-int choice1, choice2, choice3, sockfd, show1, show2, show3;
+#define MAX_LINE 1024
+#define BUFF_SIZE 1024
+
+enum msg_type
+{
+  DISCONNECT,
+  LOGIN,
+  LOGIN_SUCCESS,
+  LOGGED_IN,
+  WRONG_PASSWORD,
+  ACCOUNT_NOT_EXIST,
+  ACCOUNT_BLOCKED,
+  SIGNUP,
+  ACCOUNT_EXIST,
+  SIGNUP_SUCCESS,
+  CHANGE_PASSWORD,
+  SAME_OLD_PASSWORD,
+  CHANGE_PASSWORD_SUCCESS,
+  PLAY_ALONE,
+  STOP_GAME,
+  QUESTION,
+  CHOICE_ANSWER,
+  CORRECT_ANSWER,
+  WIN,
+  LOSE,
+  OVER_TIME,
+  LOGOUT,
+  FIFTY_FIFTY,
+  CALL_PHONE,
+  CHANGE_QUESTION
+};
+
+typedef struct _message
+{
+  enum msg_type type;
+  char data_type[25];
+  int length;
+  char value[BUFF_SIZE];
+} Message;
+
+typedef struct _account
+{
+  char username[MAX_LINE];
+  int login_status; // 0: not login; 1: logged in
+} Account;
+
+
+  int is_number(const char *s);
+  int validate_ip(char *ip);
+  int menu_start();
+  int menu_not_login();
+  int menu_logged();
+  int connect_to_server(char ip[], int port);
+  int disconnect_to_server();
+  int login(char username[], char password[]);
+  int signup(char username[], char password[]);
+  int logout();
+  int change_password(char password[]);
+  int show_menu_not_login();
+  int show_menu_logged();
+  int play_alone();
+
+int sockfd;
 int recvBytes, sendBytes;
 char sendBuff[MAX_LINE] = {0}, recvBuff[MAX_LINE];
 struct sockaddr_in server, client;
@@ -409,12 +481,7 @@ int play_alone() {
                     int answer;
                     scanf("%d", &answer);
 
-                    if (answer == 0) {
-                        msg.type = STOP_GAME;
-                        send(sockfd, &msg, sizeof(msg), 0);
-                        printf("Bạn đã dừng cuộc chơi!\n");
-                        return 1;
-                    } else if (answer == 5) {
+                    if (answer == 5) {
                         // Kiểm tra xem người chơi đã dùng trợ giúp 50/50 chưa
                         if (fifty_fifty_used > 0) {
                             printf("Bạn đã hết quyền sử dụng 50/50!\n");
@@ -674,3 +741,4 @@ int play_alone() {
     show_menu_not_login();
     return 0;
 }
+
