@@ -29,14 +29,14 @@ Sau khi config cho database thì đổi `YOUR_USERNAME` `YOUR_PASSWORD` trong fi
 ### 1.3 Tạo database ailatrieuphu
 
 ```sh
-mysql -u root -p
+mysql -u YOUR_USERNAME -p
 create database ailatrieuphu;
 ```
 
 ### 1.4 Config and import database
 
 ```sh
-mysql -u root -p ailatrieuphu < ailatrieuphu.sql 
+mysql -u YOUR_USERNAME -p ailatrieuphu < ailatrieuphu.sql 
 ```
 ## 2. Run
 ### 2.1 Make project
