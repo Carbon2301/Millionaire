@@ -489,14 +489,14 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Stopped play\n", conn_fd);
+        printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
         break;
       }
       else {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 2]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Stopped play\n", conn_fd);
+        printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
         break;
       }
       }
@@ -541,7 +541,8 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
         }
       }
       break;
-    
+
+
     default:
       break;
     }

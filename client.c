@@ -481,12 +481,7 @@ int play_alone() {
                     int answer;
                     scanf("%d", &answer);
 
-                    if (answer == 0) {
-                        msg.type = STOP_GAME;
-                        send(sockfd, &msg, sizeof(msg), 0);
-                        printf("Bạn đã dừng cuộc chơi!\n");
-                        return 1;
-                    } else if (answer == 5) {
+                    if (answer == 5) {
                         // Kiểm tra xem người chơi đã dùng trợ giúp 50/50 chưa
                         if (fifty_fifty_used > 0) {
                             printf("Bạn đã hết quyền sử dụng 50/50!\n");
