@@ -195,15 +195,22 @@ int change_question(Question *q, int level, int id) {
   MYSQL_ROW row;
 
   char query[1000];
+
+  // In ra giá trị level và id để kiểm tra
+  printf("Level: %d, ID: %d\n", level, id);
+
+  // Câu truy vấn để lấy câu hỏi mới có level và id khác
   sprintf(query, 
           "SELECT question, a, b, c, d, answer, reward, id "
           "FROM questions "
           "WHERE level = %d AND id != %d "
           "ORDER BY RAND() LIMIT 1", 
           level, id);
+
   execute_query(query);
   res = mysql_store_result(conn);
-  if((row = mysql_fetch_row(res)) != NULL){
+  if ((row = mysql_fetch_row(res)) != NULL) {
+    // Lưu dữ liệu câu hỏi vào cấu trúc
     strcpy(q->question[level - 1], row[0]);
     strcpy(q->a[level - 1], row[1]);
     strcpy(q->b[level - 1], row[2]);
@@ -212,13 +219,51 @@ int change_question(Question *q, int level, int id) {
     q->answer[level - 1] = atoi(row[5]);
     q->reward[level - 1] = atoi(row[6]);
     q->id[level-1] = atoi(row[7]);
+
+    // Giải phóng kết quả truy vấn
     mysql_free_result(res);
+
+    printf("New question ID: %d\n", q->id[level - 1]);
   }
   else {
+    // Trả về 0 nếu không có câu hỏi nào thỏa mãn điều kiện
+    printf("No new question found.\n");
     return 0;
   }
+
   return 1;
 }
+
+
+// int change_question(Question *q, int level, int id) {
+//   MYSQL_RES *res;
+//   MYSQL_ROW row;
+
+//   char query[1000];
+//   sprintf(query, 
+//           "SELECT question, a, b, c, d, answer, reward, id "
+//           "FROM questions "
+//           "WHERE level = %d AND id != %d "
+//           "ORDER BY RAND() LIMIT 1", 
+//           level, id);
+//   execute_query(query);
+//   res = mysql_store_result(conn);
+//   if((row = mysql_fetch_row(res)) != NULL){
+//     strcpy(q->question[level - 1], row[0]);
+//     strcpy(q->a[level - 1], row[1]);
+//     strcpy(q->b[level - 1], row[2]);
+//     strcpy(q->c[level - 1], row[3]);
+//     strcpy(q->d[level - 1], row[4]);
+//     q->answer[level - 1] = atoi(row[5]);
+//     q->reward[level - 1] = atoi(row[6]);
+//     q->id[level-1] = atoi(row[7]);
+//     mysql_free_result(res);
+//   }
+//   else {
+//     return 0;
+//   }
+//   return 1;
+// }
 
 Client *new_client()
 {
@@ -590,6 +635,7 @@ recvLabel:
     case FIFTY_FIFTY:
     case CALL_PHONE:
     case CHANGE_QUESTION:
+      id = questions.id[level-1];
       handle_play_game(msg, conn_fd, &questions, level, id);
       level--;
       goto initQuestion;
