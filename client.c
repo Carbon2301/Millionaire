@@ -157,7 +157,11 @@ int login(char username[], char password[]) {
     return msg.type;
 }
 
+
+
 int signup(char username[], char password[]) {
+    
+
     Message msg;
     msg.type = SIGNUP;
     strcpy(msg.data_type, "string");
