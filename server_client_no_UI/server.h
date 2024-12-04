@@ -190,6 +190,7 @@ int call_phone(Question q, int level){
   return q.answer[level - 1];
 }
 
+
 int change_question(Question *q, int level, int id) {
   MYSQL_RES *res;
   MYSQL_ROW row;
@@ -590,6 +591,7 @@ recvLabel:
     case FIFTY_FIFTY:
     case CALL_PHONE:
     case CHANGE_QUESTION:
+      id = questions.id[level-1];
       handle_play_game(msg, conn_fd, &questions, level, id);
       level--;
       goto initQuestion;

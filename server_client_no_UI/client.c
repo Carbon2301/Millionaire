@@ -674,4 +674,3 @@ int play_alone() {
     show_menu_not_login();
     return 0;
 }
-
