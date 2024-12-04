@@ -84,7 +84,7 @@ typedef struct _question
   int id[15];
 } Question;
 
-pthread_mutex_t mutex;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 MYSQL *conn;
 
@@ -245,8 +245,13 @@ void catch_ctrl_c_and_exit(int sig)
   exit(0);
 }
 
+pthread_mutex_t client_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void add_client(int conn_fd)
 {
+
+  pthread_mutex_lock(&client_mutex);
+
   Client *new = new_client();
   new->conn_fd = conn_fd;
   if (head_client == NULL)
@@ -258,10 +263,15 @@ void add_client(int conn_fd)
       tmp = tmp->next; 
     tmp->next = new;   
   }
+
+  pthread_mutex_unlock(&client_mutex);
 }
 
 void delete_client(int conn_fd)
 {
+
+  pthread_mutex_lock(&client_mutex);
+
   Client *tmp = head_client;
   Client *prev = NULL;
   while (tmp != NULL)
@@ -278,19 +288,30 @@ void delete_client(int conn_fd)
     prev = tmp;
     tmp = tmp->next;
   }
+
+  pthread_mutex_unlock(&client_mutex);
 }
 
 Client *find_client(int conn_fd)
 {
-  Client *tmp = head_client;
-  while (tmp != NULL)
-  {
-    if (tmp->conn_fd == conn_fd)
-      return tmp;
-    tmp = tmp->next;
-  }
-  return NULL;
+    pthread_mutex_lock(&client_mutex);  // Khóa mutex để bảo vệ truy cập danh sách client
+
+    Client *tmp = head_client;
+    while (tmp != NULL)
+    {
+        if (tmp->conn_fd == conn_fd)  // Nếu tìm thấy client với conn_fd khớp
+        {
+            Client *found = tmp;  // Lưu trữ client tìm được
+            pthread_mutex_unlock(&client_mutex);  // Mở khóa mutex trước khi trả về
+            return found;  // Trả về client tìm được
+        }
+        tmp = tmp->next;  // Tiến tới node tiếp theo trong danh sách
+    }
+
+    pthread_mutex_unlock(&client_mutex);  // Mở khóa mutex nếu không tìm thấy client
+    return NULL;  // Trả về NULL nếu không tìm thấy client với conn_fd đó
 }
+
 
 int is_number(const char *s)
 {
@@ -365,6 +386,9 @@ int signup(char username[], char password[])
   char query[100];
   int re;
 
+  // Khóa mutex trước khi truy cập cơ sở dữ liệu
+  pthread_mutex_lock(&mutex);
+
   sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
   execute_query(query);
   res = mysql_use_result(conn);
@@ -380,6 +404,10 @@ int signup(char username[], char password[])
     re = ACCOUNT_EXIST;
 
   mysql_free_result(res);
+
+  // Mở khóa mutex sau khi thao tác xong
+  pthread_mutex_unlock(&mutex);
+
   return re;
 }
 
@@ -455,7 +483,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
     case CHOICE_ANSWER:
       answer = atoi(strtok(msg.value, "|"));
       if (answer == 0){
-        sleep(1);
         msg.type = STOP_GAME;
       if(level <= 1){
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
@@ -474,7 +501,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else if (questions->answer[level - 1] == answer)
       {
-        sleep(1);
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
@@ -492,7 +518,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else
       {
-        sleep(1);
         msg.type = LOSE;
         if (level <= 5) {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);

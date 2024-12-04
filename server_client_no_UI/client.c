@@ -157,7 +157,11 @@ int login(char username[], char password[]) {
     return msg.type;
 }
 
+
+
 int signup(char username[], char password[]) {
+    
+
     Message msg;
     msg.type = SIGNUP;
     strcpy(msg.data_type, "string");
@@ -252,6 +256,10 @@ int change_password(char password[]){
              printf("Welcome, %s\n", msg.value);
              show_menu_logged();
            }
+           else if (msg.type == ACCOUNT_BLOCKED)
+          {
+            printf("Tài khoản: '%s' đã bị khóa.\n", msg.value);
+          }
            else if(msg.type == LOGGED_IN)
            {
              printf("Tài khoản: '%s' đang được đăng nhập ở nơi khác. Vui lòng thử lại!\n", msg.value);
@@ -666,3 +674,4 @@ int play_alone() {
     show_menu_not_login();
     return 0;
 }
+
