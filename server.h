@@ -569,7 +569,7 @@ initQuestion:
     snprintf(str, sizeof(str), "Câu %d: %s\n", level + 1, questions.question[level]);
     strcpy(msg.value, str); 
 
-    snprintf(str, sizeof(str), "A. %.500s\nB. %.500s\nC. %.500s\nD. %.500s\n",
+    snprintf(str, sizeof(str), "1. %.500s\n2. %.500s\n3. %.500s\n4. %.500s\n",
          questions.a[level], questions.b[level], questions.c[level], questions.d[level]);
     strcat(msg.value, str); 
 
