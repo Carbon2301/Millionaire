@@ -729,4 +729,3 @@ void *thread_start(void *client_fd)
   pthread_exit(NULL);
 }
 
-#endif 
