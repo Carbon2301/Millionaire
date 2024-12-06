@@ -99,7 +99,7 @@ Question get_questions();
 int fifty_fifty(Question q, int level, int incorrect_answer[2]);
 int call_phone(Question q, int level);
 int change_question(Question *q, int level, int id);
-int ask_audience(Question *q, int level, int answers[4]);
+int ask_audience(const Question *q, int level, int sum[4]);
 Client *new_client();
 void catch_ctrl_c_and_exit(int sig);
 void add_client(int conn_fd);
@@ -234,13 +234,11 @@ int change_question(Question *q, int level, int id) {
   return 1;
 }
 
-int ask_audience(Question *q, int level, int sum[4]) {
-
+int ask_audience(const Question *q, int level, int sum[4]) {
     sum[0] = q->sum_a[level - 1];
     sum[1] = q->sum_b[level - 1];
     sum[2] = q->sum_c[level - 1];
     sum[3] = q->sum_d[level - 1];
-
     return 1;
 }
 
@@ -507,9 +505,19 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
     case ASK_AUDIENCE:
       printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
       int sum[4];
-      ask_audience(questions, level, sum);
+      ask_audience(questions, level, sum);  
       msg.type = ASK_AUDIENCE;
-      snprintf(msg.value, sizeof(msg.value), "%d và %d và %d và %d", sum[0], sum[1], sum[2], sum[3]);
+      int sum_answer = sum[0] + sum[1] + sum[2] + sum[3];
+      float sum_1 = (float)sum[0] / sum_answer * 100;
+      float sum_2 = (float)sum[1] / sum_answer * 100;
+      float sum_3 = (float)sum[2] / sum_answer * 100;
+      float sum_4 = (float)sum[3] / sum_answer * 100;
+
+      snprintf(msg.value, sizeof(msg.value), 
+          "Tỷ lệ chọn phương án 1 là: %.2f%%\n"
+          "Tỷ lệ chọn phương án 2 là: %.2f%%\n"
+          "Tỷ lệ chọn phương án 3 là: %.2f%%\n"
+          "Tỷ lệ chọn phương án 4 là: %.2f%%\n", sum_1, sum_2, sum_3, sum_4);
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
     
@@ -577,7 +585,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
 
     default:
       break;
-    }
+    } 
 
     return 1;
 }
@@ -631,6 +639,7 @@ recvLabel:
     case ASK_AUDIENCE:
       id = questions.id[level-1];
       handle_play_game(msg, conn_fd, &questions, level, id);
+      level--;
     default:
       break;
     }

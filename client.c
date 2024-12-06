@@ -693,47 +693,9 @@ int play_alone() {
                             }
                         } 
                     } else if (answer == 8) {
-                    // Kiểm tra xem người chơi đã dùng trợ giúp đổi câu hỏi chưa
-                    if (ask_audience_used > 0) {
-                        printf("Bạn đã hết quyền sử dụng hỏi ý kiến khán giả!\n");
-                        printf("Nhập lựa chọn của bạn: ");
-                        scanf("%d", &answer);
-
-                        if (answer == 0) {
-                            msg.type = STOP_GAME;
-                            send(sockfd, &msg, sizeof(msg), 0);
-                            printf("Bạn đã dừng cuộc chơi!\n");
-                            return 1;
-                        }
-
-                        // Gửi đáp án cuối cùng sau khi không sử dụng được trợ giúp
-                        msg.type = CHOICE_ANSWER;
-                        snprintf(msg.value, sizeof(msg.value), "%d", answer);
-                        send(sockfd, &msg, sizeof(msg), 0);
-
-                        // Nhận phản hồi từ server
-                        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-                        if (msg.type == CORRECT_ANSWER) {
-                            printf("Đúng rồi! %s\n", msg.value);
-                        } else if (msg.type == WIN) {
-                            printf("Bạn đã thắng! %s\n", msg.value);
-                            return 1;
-                        } else if (msg.type == LOSE) {
-                            printf("Bạn đã thua! %s\n", msg.value);
-                            return 1;
-                        }
-                        continue; // Bỏ qua việc nhận lại câu hỏi
-                    }
-
-                        // Nếu chưa dùng trợ giúp, xử lý trợ giúp hỏi ý kiến khán giả
-                        msg.type = ASK_AUDIENCE;
-                        send(sockfd, &msg, sizeof(msg), 0);
-                        ask_audience_used++; // Đánh dấu đã sử dụng
-
-                        
-                        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-                        if (recvBytes > 0 && msg.type == ASK_AUDIENCE) {
-                            printf("Tỉ lệ chọn đáp án: %s\n", msg.value);
+                        // Kiểm tra xem người chơi đã dùng trợ giúp call ơhone chưa
+                        if (ask_audience_used > 0) {
+                            printf("Bạn đã hết quyền sử dụng hỏi ý kiến khán giả!\n");
                             printf("Nhập lựa chọn của bạn: ");
                             scanf("%d", &answer);
 
@@ -744,7 +706,7 @@ int play_alone() {
                                 return 1;
                             }
 
-                            // Gửi đáp án cuối cùng sau khi nhận câu hỏi mới
+                            // Gửi đáp án cuối cùng sau khi không sử dụng được trợ giúp
                             msg.type = CHOICE_ANSWER;
                             snprintf(msg.value, sizeof(msg.value), "%d", answer);
                             send(sockfd, &msg, sizeof(msg), 0);
@@ -760,7 +722,46 @@ int play_alone() {
                                 printf("Bạn đã thua! %s\n", msg.value);
                                 return 1;
                             }
-                        } 
+                            continue;  // Bỏ qua việc nhận lại câu hỏi
+                        }
+
+                        // Nếu chưa dùng trợ giúp, xử lý trợ giúp 
+                        msg.type = ASK_AUDIENCE;
+                        send(sockfd, &msg, sizeof(msg), 0);
+                        ask_audience_used++; // Đánh dấu đã sử dụng
+
+                        // Nhận gợi ý 
+                        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+                        if (msg.type == ASK_AUDIENCE) {
+                            printf("Trợ giúp hỏi ý kiến khán giả: \n%s", msg.value);
+                            printf("Nhập lựa chọn của bạn: ");
+                            scanf("%d", &answer);
+
+                            if (answer == 0) {
+                                msg.type = STOP_GAME;
+                                send(sockfd, &msg, sizeof(msg), 0);
+                                printf("Bạn đã dừng cuộc chơi!\n");
+                                return 1;
+                            }
+
+                            // Gửi đáp án cuối cùng sau khi nhận trợ giúp hỏi ý kiến khán giả
+                            msg.type = CHOICE_ANSWER;
+                            snprintf(msg.value, sizeof(msg.value), "%d", answer);
+                            send(sockfd, &msg, sizeof(msg), 0);
+
+                            // Chờ phản hồi từ server mà không nhận lại câu hỏi
+                            recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+                            if (msg.type == CORRECT_ANSWER) {
+                                printf("Đúng rồi! %s\n", msg.value);
+                            } else if (msg.type == WIN) {
+                                printf("Bạn đã thắng! %s\n", msg.value);
+                                return 1;
+                            } else if (msg.type == LOSE) {
+                                printf("Bạn đã thua! %s\n", msg.value);
+                                return 1;
+                            }
+                            continue;  // Bỏ qua việc nhận lại câu hỏi
+                        }
                     }
                     else {
                         // Trả lời câu hỏi bình thường
