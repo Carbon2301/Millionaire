@@ -41,7 +41,6 @@ mysql -u root -p ailatrieuphu < ailatrieuphu.sql
 ##### 2.6. Run Server #####
 
 ```sh
-cd server_client_no_UI
 make clean
 make all
 ./server <PORT>
@@ -50,8 +49,7 @@ make all
 #### _3. Client_ ####
 
 ```sh
-cd server_client_no_UI
-./client <IP server> <PORT>
+./client <IP> <PORT>
 ```
 
 
