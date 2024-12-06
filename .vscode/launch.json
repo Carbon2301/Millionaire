@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/CODE/Millionaire/server",
-      "program": "c:/CODE/Millionaire/server/build/Debug/outDebug",
+      "cwd": "c:/CODE/LTM/Millionaire/server_client_no_UI",
+      "program": "c:/CODE/LTM/Millionaire/server_client_no_UI/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
