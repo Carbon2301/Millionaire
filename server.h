@@ -46,7 +46,8 @@ enum msg_type
   LOGOUT,
   FIFTY_FIFTY,
   CALL_PHONE,
-  CHANGE_QUESTION
+  CHANGE_QUESTION,
+  ASK_AUDIENCE
 };
 
 enum login_status
@@ -82,6 +83,10 @@ typedef struct _question
   int answer[15];
   int reward[15];
   int id[15];
+  int sum_a[15];
+  int sum_b[15];
+  int sum_c[15];
+  int sum_d[15];
 } Question;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -94,6 +99,7 @@ Question get_questions();
 int fifty_fifty(Question q, int level, int incorrect_answer[2]);
 int call_phone(Question q, int level);
 int change_question(Question *q, int level, int id);
+int ask_audience(Question *q, int level, int answers[4]);
 Client *new_client();
 void catch_ctrl_c_and_exit(int sig);
 void add_client(int conn_fd);
@@ -149,7 +155,7 @@ Question get_questions(){
 
   for (int i = 0; i < 15; i++)
   {
-    sprintf(query, "SELECT question, a, b, c, d, answer, reward, id FROM questions WHERE level = %d ORDER BY RAND() LIMIT 1", i + 1);
+    sprintf(query, "SELECT question, a, b, c, d, answer, reward, id, sum_a, sum_b, sum_c, sum_d FROM questions WHERE level = %d ORDER BY RAND() LIMIT 1", i + 1);
     execute_query(query);
     res = mysql_store_result(conn);
     row = mysql_fetch_row(res);
@@ -161,6 +167,10 @@ Question get_questions(){
     questions.answer[i] = atoi(row[5]);
     questions.reward[i] = atoi(row[6]);
     questions.id[i] = atoi(row[7]);
+    questions.sum_a[i] = atoi(row[8]);
+    questions.sum_b[i] = atoi(row[9]);
+    questions.sum_c[i] = atoi(row[10]);
+    questions.sum_d[i] = atoi(row[11]);
     mysql_free_result(res);
   }
 
@@ -190,14 +200,13 @@ int call_phone(Question q, int level){
   return q.answer[level - 1];
 }
 
-
 int change_question(Question *q, int level, int id) {
   MYSQL_RES *res;
   MYSQL_ROW row;
 
   char query[1000];
   sprintf(query, 
-          "SELECT question, a, b, c, d, answer, reward, id "
+          "SELECT question, a, b, c, d, answer, reward, id , sum_a, sum_b, sum_c, sum_d"
           "FROM questions "
           "WHERE level = %d AND id != %d "
           "ORDER BY RAND() LIMIT 1", 
@@ -213,12 +222,26 @@ int change_question(Question *q, int level, int id) {
     q->answer[level - 1] = atoi(row[5]);
     q->reward[level - 1] = atoi(row[6]);
     q->id[level-1] = atoi(row[7]);
+    q->sum_a[level-1] = atoi(row[8]);
+    q->sum_b[level-1] = atoi(row[9]);
+    q->sum_c[level-1] = atoi(row[10]);
+    q->sum_d[level-1] = atoi(row[11]);
     mysql_free_result(res);
   }
   else {
     return 0;
   }
   return 1;
+}
+
+int ask_audience(Question *q, int level, int sum[4]) {
+
+    sum[0] = q->sum_a[level - 1];
+    sum[1] = q->sum_b[level - 1];
+    sum[2] = q->sum_c[level - 1];
+    sum[3] = q->sum_d[level - 1];
+
+    return 1;
 }
 
 Client *new_client()
@@ -480,6 +503,15 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       msg.type = CHANGE_QUESTION;
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
+
+    case ASK_AUDIENCE:
+      printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
+      int sum[4];
+      ask_audience(questions, level, sum);
+      msg.type = ASK_AUDIENCE;
+      snprintf(msg.value, sizeof(msg.value), "%d và %d và %d và %d", sum[0], sum[1], sum[2], sum[3]);
+      send(conn_fd, &msg, sizeof(msg), 0);
+      break;
     
     case CHOICE_ANSWER:
       answer = atoi(strtok(msg.value, "|"));
@@ -596,6 +628,9 @@ recvLabel:
       handle_play_game(msg, conn_fd, &questions, level, id);
       level--;
       goto initQuestion;
+    case ASK_AUDIENCE:
+      id = questions.id[level-1];
+      handle_play_game(msg, conn_fd, &questions, level, id);
     default:
       break;
     }
