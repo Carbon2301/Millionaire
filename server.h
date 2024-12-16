@@ -206,10 +206,10 @@ int change_question(Question *q, int level, int id) {
 
   char query[1000];
   sprintf(query, 
-          "SELECT question, a, b, c, d, answer, reward, id , sum_a, sum_b, sum_c, sum_d"
+          "SELECT question, a, b, c, d, answer, reward, id , sum_a, sum_b, sum_c, sum_d "
           "FROM questions "
           "WHERE level = %d AND id != %d "
-          "ORDER BY RAND() LIMIT 1", 
+          "ORDER BY RAND() LIMIT 1",
           level, id);
   execute_query(query);
   res = mysql_store_result(conn);
@@ -465,6 +465,35 @@ int change_password(char username[], char new_password[])
   return re;
 }
 
+void update_answer_sum(int id, int answer) {
+    char query[500];
+
+    switch (answer) {
+        case 1:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_a = sum_a + 1 WHERE id = %d", id);
+            break;
+        case 2:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_b = sum_b + 1 WHERE id = %d", id);
+            break;
+        case 3:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_c = sum_c + 1 WHERE id = %d", id);
+            break;
+        case 4:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_d = sum_d + 1 WHERE id = %d", id);
+            break;
+        default:
+            printf("Invalid answer choice\n");
+            return;
+    }
+
+    if (mysql_query(conn, query)) {
+        fprintf(stderr, "Error updating database: %s\n", mysql_error(conn));
+    } else {
+        printf("Database updated successfully\n");
+    }
+}
+
+
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id){
     char str[100];
     int answer;
@@ -542,6 +571,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else if (questions->answer[level - 1] == answer)
       {
+        update_answer_sum(id, answer);
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
@@ -559,6 +589,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else
       {
+        update_answer_sum(id, answer);
         msg.type = LOSE;
         if (level <= 5) {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
@@ -626,6 +657,7 @@ recvLabel:
       handle_play_game(msg, conn_fd, &questions, level, id);
       return 0;
     case CHOICE_ANSWER:
+      id = questions.id[level-1];
       re = handle_play_game(msg, conn_fd, &questions, level, id);
       if(re == 0) continue;
       return 0;
