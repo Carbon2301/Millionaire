@@ -467,7 +467,7 @@ int change_password(char username[], char new_password[])
 
 void update_answer_sum(int id, int answer) {
     char query[500];
-
+    pthread_mutex_lock(&mutex);
     switch (answer) {
         case 1:
             snprintf(query, sizeof(query), "UPDATE questions SET sum_a = sum_a + 1 WHERE id = %d", id);
@@ -487,10 +487,11 @@ void update_answer_sum(int id, int answer) {
     }
 
     if (mysql_query(conn, query)) {
-        fprintf(stderr, "Error updating database: %s\n", mysql_error(conn));
+        fprintf(stderr, "Lỗi cập nhật vào cơ sở dữ liệu!: %s\n", mysql_error(conn));
     } else {
-        printf("Database updated successfully\n");
+        printf("Cập nhật câu trả lời thành công!\n");
     }
+    pthread_mutex_unlock(&mutex);
 }
 
 
