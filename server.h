@@ -496,11 +496,11 @@ void update_answer_sum(int id, int answer) {
 
 void insert_history(char username[], int level) {
     char query[500];
-    snprintf(query, sizeof(query), "INSERT INTO history (username, correct_answers) VALUES ('%s', %d)", username, level);
+    snprintf(query, sizeof(query), "INSERT INTO history (username, correct_answers) VALUES ('%s', %d)", username, level - 1);
     if (mysql_query(conn, query)) {
         fprintf(stderr, "Lỗi khi chèn vào cơ sở dữ liệu: %s\n", mysql_error(conn));
     } else {
-        printf("Chèn thông tin ván đấu thành công cho người dùng: %s với %d câu trả lời đúng.\n", username, level);
+        printf("Chèn thông tin ván đấu thành công cho người dùng: %s với %d câu trả lời đúng.\n", username, level - 1);
     }
 }
 
