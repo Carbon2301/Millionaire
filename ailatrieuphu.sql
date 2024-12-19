@@ -37,6 +37,14 @@ CREATE TABLE `questions` (
   `sum_d` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) NOT NULL,
+  `correct_answers` int NOT NULL,  -- Số câu trả lời đúng
+  `play_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Thời gian ván đấu khi lưu vào CSDL
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 INSERT INTO `questions` (`id`, `level`, `question`, `a`, `b`, `c`, `d`, `answer`, `reward`, `sum_a`, `sum_b`, `sum_c`, `sum_d`) VALUES
 (1, 1, 'Điền tiếp vào câu tục ngữ sau: \"Chớp đông nhay nháy, gà gáy thì ....\"?', 'Toi', 'Mưa', 'Nắng', 'Râm', 2, 200 , 1 ,2 , 3, 4),
