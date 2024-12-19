@@ -40,7 +40,8 @@ enum msg_type
   FIFTY_FIFTY,
   CALL_PHONE,
   CHANGE_QUESTION,
-  ASK_AUDIENCE
+  ASK_AUDIENCE,
+  HISTORY
 };
 
 typedef struct _message
@@ -68,6 +69,7 @@ typedef struct _account
   int signup(char username[], char password[]);
   int logout();
   int change_password(char password[]);
+  void receive_history(int sockfd);
   int show_menu_not_login();
   int show_menu_logged();
   int play_alone();
@@ -157,13 +159,14 @@ int ask_audience_used = 0;
      printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
      printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
      printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
-     printf("\t4. Đăng xuất.\n");
+     printf("\t4. Hiển thị lịch sử ván đấu\n");
+     printf("\t5. Đăng xuất.\n");
      printf("Lựa chọn của bạn là: ");
      scanf(" %[^\n]", input);
      if (strlen(input) != 1 || !isdigit(input[0]))
        break;
      op = atoi(input);
-   } while (op > 4 || op < 1);
+   } while (op > 5 || op < 1);
    return op;
  }
 
@@ -262,6 +265,21 @@ int logout(){
     printf("Gửi dữ liệu không thành công");
   }
   return msg.type;
+}
+
+void receive_history(int sockfd) {
+    Message msg;
+    ssize_t bytes_received;
+
+    bytes_received = recv(sockfd, &msg, sizeof(msg), 0);
+    if (bytes_received <= 0) {
+        perror("Không thể nhận dữ liệu hoặc kết nối đã bị đóng");
+        return;
+    }
+    if (msg.type == HISTORY) {
+        printf("Nhận thông tin lịch sử từ server:\n");
+        printf("%s\n", msg.value);
+    }
 }
 
 int change_password(char password[]){
@@ -440,6 +458,11 @@ int change_password(char password[]){
        play_alone();
        break;
      case 4:
+       msg.type = HISTORY;
+       send(sockfd, &msg, sizeof(msg), 0);
+       receive_history(sockfd);
+       break;
+     case 5:
        msg.type = LOGOUT;
        send(sockfd, &msg, sizeof(msg), 0);
        printf("Bạn đã đăng xuất\n");
@@ -807,4 +830,5 @@ int play_alone() {
     show_menu_not_login();
     return 0;
 }
+
 
