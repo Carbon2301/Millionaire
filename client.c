@@ -198,7 +198,6 @@ int connect_to_server(char serverIP[], int serverPort) {
     return 1;
 }
 
-
 int disconnect_to_server()
 {
   printf("Disconnect...\n");
@@ -229,8 +228,6 @@ int login(char username[], char password[]) {
 
     return msg.type;
 }
-
-
 
 int signup(char username[], char password[]) {
     
@@ -794,8 +791,6 @@ int play_alone() {
         }
     }
 }
-
-
 
  int main(int argc, char *argv[])
 {
