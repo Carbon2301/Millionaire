@@ -1,4 +1,3 @@
-
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
@@ -35,6 +34,14 @@ CREATE TABLE `questions` (
   `sum_b` int NOT NULL,
   `sum_c` int NOT NULL,
   `sum_d` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) NOT NULL,
+  `correct_answers` int NOT NULL,  -- Số câu trả lời đúng
+  `play_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Thời gian ván đấu khi lưu vào CSDL
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
