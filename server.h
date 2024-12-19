@@ -174,25 +174,18 @@ Question get_questions(){
     questions.sum_d[i] = atoi(row[11]);
     mysql_free_result(res);
   }
-
-  printf("Get question success\n");
   return questions;
 }
 
 int fifty_fifty(Question q, int level, int answers[2]) {
     srand(time(0));
-    int correct_answer = q.answer[level - 1]; // Đáp án đúng
+    int correct_answer = q.answer[level - 1]; 
     int incorrect_answer;
-
-    // Chọn ngẫu nhiên một đáp án sai khác đáp án đúng
     do {
-        incorrect_answer = rand() % 4 + 1;  // Tạo một đáp án sai ngẫu nhiên từ 1 đến 4
+        incorrect_answer = rand() % 4 + 1;
     } while (incorrect_answer == correct_answer);
-
-    // Đặt đáp án đúng vào `answers[0]` và đáp án sai vào `answers[1]`
     answers[0] = correct_answer;
     answers[1] = incorrect_answer;
-
     return 1;
 }
 
@@ -318,15 +311,14 @@ void delete_client(int conn_fd)
 Client *find_client(int conn_fd)
 {
     pthread_mutex_lock(&client_mutex);  // Khóa mutex để bảo vệ truy cập danh sách client
-
     Client *tmp = head_client;
     while (tmp != NULL)
     {
-        if (tmp->conn_fd == conn_fd)  // Nếu tìm thấy client với conn_fd khớp
+        if (tmp->conn_fd == conn_fd) 
         {
-            Client *found = tmp;  // Lưu trữ client tìm được
+            Client *found = tmp;  
             pthread_mutex_unlock(&client_mutex);  // Mở khóa mutex trước khi trả về
-            return found;  // Trả về client tìm được
+            return found;
         }
         tmp = tmp->next;  // Tiến tới node tiếp theo trong danh sách
     }
@@ -488,8 +480,6 @@ void update_answer_sum(int id, int answer) {
 
     if (mysql_query(conn, query)) {
         fprintf(stderr, "Lỗi cập nhật vào cơ sở dữ liệu!: %s\n", mysql_error(conn));
-    } else {
-        printf("Cập nhật câu trả lời thành công!\n");
     }
     pthread_mutex_unlock(&mutex);
 }
@@ -500,8 +490,6 @@ void insert_history(char username[], int level) {
     snprintf(query, sizeof(query), "INSERT INTO history (username, correct_answers) VALUES ('%s', %d)", username, level - 1);
     if (mysql_query(conn, query)) {
         fprintf(stderr, "Lỗi khi chèn vào cơ sở dữ liệu: %s\n", mysql_error(conn));
-    } else {
-        printf("Chèn thông tin ván đấu thành công cho người dùng: %s với %d câu trả lời đúng.\n", username, level - 1);
     }
     pthread_mutex_unlock(&mutex);
 }
@@ -534,7 +522,7 @@ void get_history_by_username(char user_name[], int conn_fd) {
     MYSQL_ROW row;
     while ((row = mysql_fetch_row(result))) {
         char row_result[256];
-        snprintf(row_result, sizeof(row_result), "Username: %s, Correct Answers: %s, Play Time: %s\n",
+        snprintf(row_result, sizeof(row_result), "Username: %s, Correct Answers: %s, Time: %s\n",
                  row[0] ? row[0] : "NULL",
                  row[1] ? row[1] : "NULL",
                  row[2] ? row[2] : "NULL");
@@ -556,13 +544,9 @@ void get_history_by_username(char user_name[], int conn_fd) {
     ssize_t bytes_sent = send(conn_fd, &msg, sizeof(msg), 0);
     if (bytes_sent == -1) {
         perror("Gửi lịch sử thất bại");
-    } else {
-        printf("Đã gửi lịch sử cho username: %s\n", user_name);
     }
-
     mysql_free_result(result);
 }
-
 
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id, char username[]){
     char str[100];
@@ -576,7 +560,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       printf("[%d]: Over time\n", conn_fd);
       break;
      case FIFTY_FIFTY:
-        // Xử lý trợ giúp 50/50
         printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
         int answers[2];
         fifty_fifty(*questions, level, answers);
@@ -589,7 +572,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       int phone_answer[1];
       phone_answer[0] = call_phone(*questions, level);  
       msg.type = CALL_PHONE;
-      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Chỉ gửi một số điện thoại
+      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]); 
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
     case CHANGE_QUESTION:
@@ -619,6 +602,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       answer = atoi(strtok(msg.value, "|"));
       if (answer == 0){
         msg.type = STOP_GAME;
+        insert_history(username, level);
       if(level <= 1){
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
@@ -644,7 +628,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
           msg.type = WIN;
           insert_history(username, level);
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: Bạn đã thắng!\n", conn_fd);
+          printf("[%d]: WIN!\n", conn_fd);
         }
         else{
           msg.type = CORRECT_ANSWER;
@@ -662,19 +646,19 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Bạn đã thua\n", conn_fd);
+        printf("[%d]: LOSE\n", conn_fd);
         break;
         } else if (level <= 10) {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Bạn đã thua\n", conn_fd);
+        printf("[%d]: LOSE\n", conn_fd);
         break;
         } else {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Bạn đã thua\n", conn_fd);
+        printf("[%d]: LOSE\n", conn_fd);
         break;
         }
       }
@@ -744,7 +728,6 @@ recvLabel:
   }
   return 1;
 }
-
 
 void *thread_start(void *client_fd)
 {
