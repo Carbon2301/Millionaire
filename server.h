@@ -508,7 +508,9 @@ void insert_history(char username[], int level) {
 
 void get_history_by_username(char user_name[], int conn_fd) {
     char query[500];
-    snprintf(query, sizeof(query), "SELECT username, correct_answers, play_time FROM history WHERE username = '%s'", user_name);
+    snprintf(query, sizeof(query), 
+        "SELECT username, correct_answers, DATE_ADD(play_time, INTERVAL 7 HOUR) AS adjusted_play_time "
+        "FROM history WHERE username = '%s'", user_name);
 
     if (mysql_query(conn, query)) {
         fprintf(stderr, "Lỗi khi thực hiện truy vấn: %s\n", mysql_error(conn));

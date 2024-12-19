@@ -38,14 +38,8 @@ create database ailatrieuphu;
 ```sh
 mysql -u root -p ailatrieuphu < ailatrieuphu.sql 
 ```
-##### 2.6. Cấu hình lại múi giờ của bạn
 
-```sh
-SELECT @@global.time_zone, @@session.time_zone;
-SET time_zone = '+07:00';
-```
-
-##### 2.7. Run Server #####
+##### 2.6. Run Server #####
 
 ```sh
 make clean
