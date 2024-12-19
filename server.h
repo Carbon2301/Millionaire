@@ -47,7 +47,8 @@ enum msg_type
   FIFTY_FIFTY,
   CALL_PHONE,
   CHANGE_QUESTION,
-  ASK_AUDIENCE
+  ASK_AUDIENCE,
+  HISTORY
 };
 
 enum login_status
@@ -334,7 +335,6 @@ Client *find_client(int conn_fd)
     return NULL;  // Trả về NULL nếu không tìm thấy client với conn_fd đó
 }
 
-
 int is_number(const char *s)
 {
   while (*s != '\0')
@@ -483,7 +483,7 @@ void update_answer_sum(int id, int answer) {
             break;
         default:
             printf("Invalid answer choice\n");
-            return;
+            break;
     }
 
     if (mysql_query(conn, query)) {
@@ -505,6 +505,62 @@ void insert_history(char username[], int level) {
     }
     pthread_mutex_unlock(&mutex);
 }
+
+void get_history_by_username(char user_name[], int conn_fd) {
+    char query[500];
+    snprintf(query, sizeof(query), "SELECT username, correct_answers, play_time FROM history WHERE username = '%s'", user_name);
+
+    if (mysql_query(conn, query)) {
+        fprintf(stderr, "Lỗi khi thực hiện truy vấn: %s\n", mysql_error(conn));
+        return;
+    }
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    if (result == NULL) {
+        fprintf(stderr, "Lỗi khi lấy kết quả truy vấn: %s\n", mysql_error(conn));
+        return;
+    }
+
+    int num_fields = mysql_num_fields(result);
+    if (num_fields == 0) {
+        printf("Không tìm thấy lịch sử cho username: %s\n", user_name);
+        mysql_free_result(result);
+        return;
+    }
+
+    char response[BUFF_SIZE] = "";
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(result))) {
+        char row_result[256];
+        snprintf(row_result, sizeof(row_result), "Username: %s, Correct Answers: %s, Play Time: %s\n",
+                 row[0] ? row[0] : "NULL",
+                 row[1] ? row[1] : "NULL",
+                 row[2] ? row[2] : "NULL");
+
+        if (strlen(response) + strlen(row_result) < sizeof(response)) {
+            strncat(response, row_result, sizeof(response) - strlen(response) - 1);
+        } else {
+            printf("Dữ liệu quá lớn, không thể thêm vào.\n");
+            break;
+        }
+    }
+
+    Message msg;
+    msg.type = HISTORY;
+    strcpy(msg.data_type, "string");
+    msg.length = strlen(response);
+    strcpy(msg.value, response);
+
+    ssize_t bytes_sent = send(conn_fd, &msg, sizeof(msg), 0);
+    if (bytes_sent == -1) {
+        perror("Gửi lịch sử thất bại");
+    } else {
+        printf("Đã gửi lịch sử cho username: %s\n", user_name);
+    }
+
+    mysql_free_result(result);
+}
+
 
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id, char username[]){
     char str[100];
@@ -734,6 +790,10 @@ void *thread_start(void *client_fd)
       case PLAY_ALONE:
         printf("[%d]: '%s' đang chơi đơn!\n", conn_fd, cli->login_account);
         handle_play_alone(conn_fd, cli->login_account);
+        break;
+      case HISTORY:
+        printf("[%d]: '%s' yêu cầu xem lịch sử đấu!\n", conn_fd, cli->login_account);
+        get_history_by_username(cli->login_account, conn_fd);
         break;
       case LOGOUT:
         printf("[%d]: Goodbye '%s'\n", conn_fd, cli->login_account);
