@@ -1,2 +1,5 @@
-.\client
-.\server
+.vscode
+
+client
+server
+config
