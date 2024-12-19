@@ -41,7 +41,14 @@ enum msg_type
   CALL_PHONE,
   CHANGE_QUESTION,
   ASK_AUDIENCE,
-  HISTORY
+  HISTORY,
+  PLAY_PVP,
+  FOUND_PLAYER,
+  NOT_FOUND_PLAYER,
+  ENEMY_CURRENT_DATA,
+  WIN_PVP,
+  LOSE_PVP,
+  DRAW
 };
 
 typedef struct _message
@@ -60,7 +67,6 @@ typedef struct _account
 
   int is_number(const char *s);
   int validate_ip(char *ip);
-  int menu_start();
   int menu_not_login();
   int menu_logged();
   int connect_to_server(char ip[], int port);
@@ -73,6 +79,7 @@ typedef struct _account
   int show_menu_not_login();
   int show_menu_logged();
   int play_alone();
+  int play_pvp();
 
 int sockfd;
 int recvBytes, sendBytes;
@@ -158,6 +165,7 @@ int ask_audience_used = 0;
      printf("\t\t'5': Trợ giúp 50/50\n");
      printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
      printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
+     printf("\t\t'8': Trợ giúp hỏi ý kiến khán giả\n");
      printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
      printf("\t4. Hiển thị lịch sử ván đấu\n");
      printf("\t5. Đăng xuất.\n");
@@ -456,6 +464,11 @@ int change_password(char password[]){
        msg.type = PLAY_ALONE;
        send(sockfd, &msg, sizeof(msg), 0);
        play_alone();
+       break;
+     case 3:
+       msg.type = PLAY_PVP;
+       send(sockfd, &msg, sizeof(msg), 0);
+       play_pvp();
        break;
      case 4:
        msg.type = HISTORY;
@@ -814,6 +827,82 @@ int play_alone() {
     }
 }
 
+int play_pvp()
+{
+  Message msg;
+  recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+  if (recvBytes <= 0)
+  {
+    perror("The server terminated prematurely");
+    exit(4);
+    return 0;
+  }
+
+  printf("%s\n", msg.value);
+
+  recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+  if (recvBytes <= 0)
+  {
+    perror("The server terminated prematurely");
+    exit(4);
+    return 0;
+  }
+
+  switch (msg.type)
+  {
+  case FOUND_PLAYER:
+    printf("%s\n", msg.value);
+    break;
+  case NOT_FOUND_PLAYER:
+    printf("%s\n", msg.value);
+    return 0;
+  }
+
+  recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+  if (recvBytes <= 0)
+  {
+    perror("The server terminated prematurely");
+    exit(4);
+    return 0;
+  }
+
+  printf("Enter room %s\n", msg.value);
+
+  while (1)
+  {
+    recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+    if (recvBytes < 0)
+    {
+      perror("The server terminated prematurely");
+      exit(0);
+      return 0;
+    }
+    else
+    {
+      switch (msg.type)
+      {
+      case QUESTION:
+        printf("%s", msg.value);
+        printf("Đáp án: ");
+        msg.type = CHOICE_ANSWER;
+        scanf(" %[^\n]", msg.value);
+        send(sockfd, &msg, sizeof(msg), 0);
+        break;
+      case CORRECT_ANSWER:
+        printf("%s\n", msg.value);
+        break;
+      case WIN:
+      case LOSE:
+      case DRAW:
+        printf("%s\n", msg.value);
+        return 1;
+      }
+    }
+  }
+
+  return 1;
+}
+
  int main(int argc, char *argv[])
 {
    if(argc != 3)
@@ -830,5 +919,3 @@ int play_alone() {
     show_menu_not_login();
     return 0;
 }
-
-
