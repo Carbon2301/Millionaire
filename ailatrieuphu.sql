@@ -13,11 +13,10 @@ CREATE TABLE `account` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- INSERT INTO `account` (`id`, `username`, `password`, `status`) VALUES
--- (1, 'an', 'an', 1),
--- (2, 'a', 'a', 1),
--- (3, 'b', 'b', 1),
--- (4, 'c', 'c', 0);
+INSERT INTO `account` (`id`, `username`, `password`, `status`) VALUES
+(1, 'a', 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb', 1),
+(2, 'b', '3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d', 1),
+(3, 'c', '2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6', 0);
 
 CREATE TABLE `questions` (
   `id` int NOT NULL AUTO_INCREMENT,

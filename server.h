@@ -344,11 +344,10 @@ void hash_user_password(const char *password, char *hashed_password) {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256((unsigned char *)password, strlen(password), hash);
 
-    // Chuyển hash thành chuỗi hex
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         sprintf(hashed_password + (i * 2), "%02x", hash[i]);
     }
-    hashed_password[SHA256_DIGEST_LENGTH * 2] = '\0'; // Kết thúc chuỗi
+    hashed_password[SHA256_DIGEST_LENGTH * 2] = '\0';
 }
 
 int login(int conn_fd, char msg_data[BUFF_SIZE]) {
