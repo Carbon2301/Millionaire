@@ -96,6 +96,7 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 MYSQL *conn;
 
 int connect_to_database();
+void close_database();
 int execute_query(char *query);
 Question get_questions();
 int fifty_fifty(Question q, int level, int incorrect_answer[2]);
@@ -119,18 +120,11 @@ int handle_play_alone(int conn_fd, char username[BUFF_SIZE]);
 /*---------------- Tính năng -------------------*/
 int connect_to_database()
 {
-  char server[50], username[50], password[50], database[50];
-  int port;
-
-  FILE *f = fopen("config", "r");
-  if (f == NULL)
-  {
-    printf("Error opening file!\n");
-    exit(1);
-  }
-
-  fscanf(f, "DB_HOST=%s\nDB_PORT=%d\nDB_DATABASE=%s\nDB_USERNAME=%s\nDB_PASSWORD=%s", server, &port, database, username, password);
-  fclose(f);
+    char server[50] = "127.0.0.1";
+    int port = 3306;
+    char database[50] = "ailatrieuphu";
+    char username[50] = "root";
+    char password[50] = "TrinhAn04";
 
   conn = mysql_init(NULL);
   if (!mysql_real_connect(conn, server, username, password, database, port, NULL, 0)) {
@@ -138,6 +132,13 @@ int connect_to_database()
     exit(1);
   }
   return 1;
+}
+
+void close_database() {
+    if (conn) {
+        mysql_close(conn);
+        printf("Database connection closed.\n");
+    }
 }
 
 int execute_query(char *query)
@@ -260,6 +261,7 @@ void catch_ctrl_c_and_exit(int sig)
     delete_client(head_client->conn_fd);
   }
   printf("\nBye\n");
+  close_database();
   exit(0);
 }
 
@@ -312,21 +314,21 @@ void delete_client(int conn_fd)
 
 Client *find_client(int conn_fd)
 {
-    pthread_mutex_lock(&client_mutex);  // Khóa mutex để bảo vệ truy cập danh sách client
+    pthread_mutex_lock(&client_mutex);
     Client *tmp = head_client;
     while (tmp != NULL)
     {
         if (tmp->conn_fd == conn_fd) 
         {
             Client *found = tmp;  
-            pthread_mutex_unlock(&client_mutex);  // Mở khóa mutex trước khi trả về
+            pthread_mutex_unlock(&client_mutex);
             return found;
         }
-        tmp = tmp->next;  // Tiến tới node tiếp theo trong danh sách
+        tmp = tmp->next;
     }
 
-    pthread_mutex_unlock(&client_mutex);  // Mở khóa mutex nếu không tìm thấy client
-    return NULL;  // Trả về NULL nếu không tìm thấy client với conn_fd đó
+    pthread_mutex_unlock(&client_mutex);
+    return NULL;  //Trả về NULL nếu không tìm thấy
 }
 
 int is_number(const char *s)
@@ -489,13 +491,10 @@ void update_answer_sum(int id, int answer) {
             snprintf(query, sizeof(query), "UPDATE questions SET sum_d = sum_d + 1 WHERE id = %d", id);
             break;
         default:
-            printf("Invalid answer choice\n");
+            printf("Lựa chọn không hợp lệ!\n");
             break;
     }
 
-    if (mysql_query(conn, query)) {
-        fprintf(stderr, "Lỗi cập nhật vào cơ sở dữ liệu!: %s\n", mysql_error(conn));
-    }
     pthread_mutex_unlock(&mutex);
 }
 
