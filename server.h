@@ -437,36 +437,39 @@ int signup(char username[], char password[])
 }
 
 
-int change_password(char username[], char new_password[])
-{
-  MYSQL_RES *res;
-  MYSQL_ROW row;
+int change_password(char username[], char new_password[]) {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
 
-  char query[100];
-  int re;
+    char query[256];
+    char hashed_password[SHA256_DIGEST_LENGTH * 2 + 1];
+    char current_hashed_password[SHA256_DIGEST_LENGTH * 2 + 1];
+    int re;
 
-  sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
-  execute_query(query);
-  res = mysql_use_result(conn);
-  if ((row = mysql_fetch_row(res)) != NULL)
-  {
-    if (strcmp(row[2], new_password) == 0)
-    {
-      re = SAME_OLD_PASSWORD;
+    hash_user_password(new_password, hashed_password);
+
+    sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
+    execute_query(query);
+    res = mysql_use_result(conn);
+
+    if ((row = mysql_fetch_row(res)) != NULL) {
+        strncpy(current_hashed_password, row[2], SHA256_DIGEST_LENGTH * 2 + 1);
+        if (strcmp(current_hashed_password, hashed_password) == 0) {
+            re = SAME_OLD_PASSWORD; 
+        } else {
+            mysql_free_result(res);
+            sprintf(query, "UPDATE account SET password = '%s' WHERE username = '%s'", hashed_password, username);
+            execute_query(query);
+            res = mysql_use_result(conn);
+
+            re = CHANGE_PASSWORD_SUCCESS;
+        }
+    } else {
+        re = ACCOUNT_NOT_EXIST;
     }
-    else {
-      mysql_free_result(res);
-      sprintf(query, "UPDATE account SET password = '%s' WHERE username = '%s'", new_password, username);
-      execute_query(query);
-      res = mysql_use_result(conn);
-      re = CHANGE_PASSWORD_SUCCESS;
-    }
-  }
-  else
-    re = ACCOUNT_NOT_EXIST;
 
-  mysql_free_result(res);
-  return re;
+    mysql_free_result(res);
+    return re;
 }
 
 void update_answer_sum(int id, int answer) {
