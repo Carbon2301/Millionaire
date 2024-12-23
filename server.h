@@ -979,23 +979,25 @@ int handle_play_pvp(int conn_fd)
 
     while (room->index_current_question[index_in_room] < 15)
     {
+    printf("Sending message to client %d: type=%d, value=%s\n", conn_fd, msg.type, msg.value);
+
 initQuestion2:
       msg.type = QUESTION;
       sprintf(str, "%d", room->index_current_question[index_in_room] + 1);
       strcpy(msg.value, str);
-      strcat(msg.value, "|");
-      strcat(msg.value, room->questions[index_in_room].question[room->index_current_question[index_in_room]]);
-      strcat(msg.value, "|");
-      strcat(msg.value, room->questions[index_in_room].a[room->index_current_question[index_in_room]]);
-      strcat(msg.value, "|");
-      strcat(msg.value, room->questions[index_in_room].b[room->index_current_question[index_in_room]]);
-      strcat(msg.value, "|");
-      strcat(msg.value, room->questions[index_in_room].c[room->index_current_question[index_in_room]]);
-      strcat(msg.value, "|");
-      strcat(msg.value, room->questions[index_in_room].d[room->index_current_question[index_in_room]]);
+      msg.type = QUESTION;
+      snprintf(str, sizeof(str), "Câu %d: %s\n", room->index_current_question[index_in_room] + 1, 
+        room->questions[index_in_room].question[room->index_current_question[index_in_room]]);
+      strcat(msg.value, str);
+      snprintf(str, sizeof(str), "1. %.500s\n2. %.500s\n3. %.500s\n4. %.500s\n",
+        room->questions[index_in_room].a[room->index_current_question[index_in_room]], 
+        room->questions[index_in_room].b[room->index_current_question[index_in_room]], 
+        room->questions[index_in_room].c[room->index_current_question[index_in_room]], 
+        room->questions[index_in_room].d[room->index_current_question[index_in_room]]);
+      strcat(msg.value, str); 
+
       send(conn_fd, &msg, sizeof(msg), 0);
       room->index_current_question[index_in_room]++;
-
 recvLabel2:
       recv(conn_fd, &msg, sizeof(msg), 0);
 
