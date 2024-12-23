@@ -712,7 +712,21 @@ initQuestion:
     level++;
 
 recvLabel:
-    recv(conn_fd, &msg, sizeof(msg), 0);
+    int recvBytes = recv(conn_fd, &msg, sizeof(msg), 0);
+
+        // Xử lý lỗi hoặc timeout
+        if (recvBytes <= 0) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                printf("[%d]: Timeout: Không có phản hồi từ '%s' cho câu hỏi %d\n", conn_fd, username, level);
+            } else if (recvBytes == 0) {
+                printf("[%d]: Client đã ngắt kết nối trong khi trả lời câu hỏi %d\n", conn_fd, level);
+            } else {
+                perror("Recv error");
+            }
+            close(conn_fd);
+            delete_client(conn_fd);
+            return -1;
+        }
 
     switch (msg.type)
     {
@@ -750,7 +764,20 @@ void *thread_start(void *client_fd)
   int recvBytes, re;
   Message msg;
   int conn_fd = *((int *)client_fd);
-  Client *cli = head_client;
+    free(client_fd);
+
+    // Thiết lập timeout cho socket
+    struct timeval timeout;
+    timeout.tv_sec = 20;  // Thời gian chờ 20 giây
+    timeout.tv_usec = 0;
+
+    if (setsockopt(conn_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        perror("Error setting socket timeout");
+        close(conn_fd);
+        pthread_exit(NULL);
+    }
+
+    Client *cli = head_client;
 
   while (cli->conn_fd != conn_fd && cli != NULL)
     cli = cli->next;
@@ -862,12 +889,18 @@ void *thread_start(void *client_fd)
       break;
     }
   }
-  if (recvBytes <= 0)
-  {
-    printf("[%d]: Client đã ngắt kết nối!\n", conn_fd);
-    close(conn_fd);
-    delete_client(conn_fd);
-  }
+   // Kiểm tra lý do thoát khỏi vòng lặp
+    if (recvBytes <= 0) {
+        if (errno == EWOULDBLOCK || errno == EAGAIN) {
+            printf("[%d]: Timeout: Không có phản hồi nào trong 20 giây\n", conn_fd);
+        } else if (recvBytes == 0) {
+            printf("[%d]: Client ngắt kết nối\n", conn_fd);
+        } else {
+            perror("Recv error");
+        }
+        close(conn_fd);
+        delete_client(conn_fd);
+    }
 
   pthread_exit(NULL);
 }
