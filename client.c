@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <ctype.h>
 #include <time.h>
+#include <openssl/sha.h>
 
 #define MAX_LINE 1024
 #define BUFF_SIZE 1024
@@ -233,7 +234,6 @@ int login(char username[], char password[]) {
 
 int signup(char username[], char password[]) {
     
-
     Message msg;
     msg.type = SIGNUP;
     strcpy(msg.data_type, "string");
@@ -830,5 +830,4 @@ int play_alone() {
     show_menu_not_login();
     return 0;
 }
-
 

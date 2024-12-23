@@ -7,17 +7,17 @@ USE `ailatrieuphu`;
 
 CREATE TABLE `account` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(50) NOT NULL,
-  `password` varchar(50) NOT NULL,
+  `username` varchar(64) NOT NULL,
+  `password` varchar(64) NOT NULL,
   `status` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO `account` (`id`, `username`, `password`, `status`) VALUES
-(1, 'an', 'an', 1),
-(2, 'a', 'a', 1),
-(3, 'b', 'b', 1),
-(4, 'c', 'c', 0);
+-- INSERT INTO `account` (`id`, `username`, `password`, `status`) VALUES
+-- (1, 'an', 'an', 1),
+-- (2, 'a', 'a', 1),
+-- (3, 'b', 'b', 1),
+-- (4, 'c', 'c', 0);
 
 CREATE TABLE `questions` (
   `id` int NOT NULL AUTO_INCREMENT,
