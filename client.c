@@ -126,50 +126,73 @@ int ask_audience_used = 0;
    return 1;
  }
 
- int menu_not_login()
- {
-   char input[MAX_LINE];
-   int op;
-   do
-   {
-     printf("\nVui lòng chọn một trong các chức năng sau để tiếp tục:\n");
-     printf("\t1. Đăng nhập\n");
-     printf("\t2. Đăng ký\n");
-     printf("\t3. Trở về\n");
-     printf("Lựa chọn của bạn là: ");
-     scanf(" %[^\n]", input);
-     if (strlen(input) != 1 || !isdigit(input[0]))
-       break;
-     op = atoi(input);
-   } while (op > 3 || op < 1);
-   return op;
- }
+ int menu_not_login() {
+    char input[MAX_LINE];
+    int op;
 
- int menu_logged()
- {
-   char input[MAX_LINE];
-   int op;
-   do
-   {
-     printf("\nMenu:\n");
-     printf("\t1. Thay đổi mật khẩu.\n");
-     printf("\t2. Chơi đơn. Khi vào chơi, lưu ý: \n");
-     printf("\t\t'0': Xin dừng cuộc chơi\n");
-     printf("\t\t'1 -> 4': Trả lời câu hỏi\n");
-     printf("\t\t'5': Trợ giúp 50/50\n");
-     printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
-     printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
-     printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
-     printf("\t4. Hiển thị lịch sử ván đấu\n");
-     printf("\t5. Đăng xuất.\n");
-     printf("Lựa chọn của bạn là: ");
-     scanf(" %[^\n]", input);
-     if (strlen(input) != 1 || !isdigit(input[0]))
-       break;
-     op = atoi(input);
-   } while (op > 5 || op < 1);
-   return op;
- }
+    do {
+        printf("\nVui lòng chọn một trong các chức năng sau để tiếp tục:\n");
+        printf("\t1. Đăng nhập\n");
+        printf("\t2. Đăng ký\n");
+        printf("\t3. Trở về\n");
+        printf("Lựa chọn của bạn là: ");
+        scanf(" %[^\n]", input);
+
+        int is_number = 1;
+        for (int i = 0; i < strlen(input); i++) {
+            if (!isdigit(input[i])) {
+                is_number = 0;
+                break;
+            }
+        }
+
+        if (!is_number) {
+            printf("Lựa chọn không hợp lệ. Vui lòng nhập lại.\n");
+            op = 0;
+        } else {
+            op = atoi(input);
+        }
+    } while (op > 3 || op < 1);
+
+    return op;
+}
+
+int menu_logged() {
+    char input[MAX_LINE];
+    int op;
+    do {
+        printf("\nMenu:\n");
+        printf("\t1. Thay đổi mật khẩu.\n");
+        printf("\t2. Chơi đơn. Khi vào chơi, lưu ý: \n");
+        printf("\t\t'0': Xin dừng cuộc chơi\n");
+        printf("\t\t'1 -> 4': Trả lời câu hỏi\n");
+        printf("\t\t'5': Trợ giúp 50/50\n");
+        printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
+        printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
+        printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
+        printf("\t4. Hiển thị lịch sử ván đấu\n");
+        printf("\t5. Đăng xuất.\n");
+        printf("Lựa chọn của bạn là: ");
+        scanf(" %[^\n]", input);
+
+        int is_number = 1;
+        for (int i = 0; i < strlen(input); i++) {
+            if (!isdigit(input[i])) {
+                is_number = 0;
+                break;
+            }
+        }
+
+        if (!is_number) {
+            printf("Lựa chọn không hợp lệ. Vui lòng nhập lại.\n");
+            op = 0; 
+        } else {
+            op = atoi(input);
+        }
+    } while (op > 5 || op < 1);
+
+    return op;
+}
 
 int connect_to_server(char serverIP[], int serverPort) {
     
