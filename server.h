@@ -124,6 +124,11 @@ int call_phone(Question q, int level);
 int change_question(Question *q, int level, int id);
 int ask_audience(const Question *q, int level, int sum[4]);
 Client *new_client();
+Room *new_room();
+Room *add_room();
+void delete_room(int room_id);
+Room *find_room_is_blank_or_waiting();
+int add_client_to_room(int conn_fd, Room *room);
 void catch_ctrl_c_and_exit(int sig);
 void add_client(int conn_fd);
 void delete_client(int conn_fd);
@@ -132,9 +137,14 @@ int is_number(const char *s);
 void *thread_start(void *client_fd);
 int login(int conn_fd, char msg_data[BUFF_SIZE]);
 int signup(char username[BUFF_SIZE], char password[BUFF_SIZE]);
+void update_answer_sum(int id, int answer);
+void insert_history(char username[], int level);
+void get_history_by_username(char user_name[], int conn_fd);
+void *send_data(void *arg);
 int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id,char username[BUFF_SIZE], int isPlayPVP);
 int handle_play_alone(int conn_fd, char username[BUFF_SIZE]);
+int handle_play_pvp(int conn_fd);
 
 /*---------------- Tính năng -------------------*/
 int connect_to_database()

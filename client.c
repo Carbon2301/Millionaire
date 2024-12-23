@@ -833,7 +833,7 @@ int play_pvp()
   recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
   if (recvBytes <= 0)
   {
-    perror("The server terminated prematurely");
+    perror("Máy chủ ngắt kết nối");
     exit(4);
     return 0;
   }
@@ -843,7 +843,7 @@ int play_pvp()
   recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
   if (recvBytes <= 0)
   {
-    perror("The server terminated prematurely");
+    perror("Máy chủ ngắt kết nối");
     exit(4);
     return 0;
   }
@@ -861,7 +861,7 @@ int play_pvp()
   recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
   if (recvBytes <= 0)
   {
-    perror("The server terminated prematurely");
+    perror("Máy chủ ngắt kết nối");
     exit(4);
     return 0;
   }
@@ -873,7 +873,7 @@ int play_pvp()
     recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
     if (recvBytes < 0)
     {
-      perror("The server terminated prematurely");
+      perror("Máy chủ ngắt kết nối");
       exit(0);
       return 0;
     }
@@ -896,6 +896,11 @@ int play_pvp()
       case DRAW:
         printf("%s\n", msg.value);
         return 1;
+      default:
+      printf("Nhận được thông điệp không xác định: %d\n", msg.type);
+      printf("Nội dung thông điệp: %s\n", msg.value);
+      break;
+
       }
     }
   }
