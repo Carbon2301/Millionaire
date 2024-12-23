@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <time.h>
 #include <mysql/mysql.h>
+#include <openssl/sha.h>
 
 #define BACKLOG 6
 #define BUFF_SIZE 1024
@@ -108,6 +109,7 @@ void delete_client(int conn_fd);
 Client *find_client(int conn_fd);
 int is_number(const char *s);
 void *thread_start(void *client_fd);
+void hash_user_password(const char *password, char *hashed_password);
 int login(int conn_fd, char msg_data[BUFF_SIZE]);
 int signup(char username[BUFF_SIZE], char password[BUFF_SIZE]);
 int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
@@ -338,92 +340,103 @@ int is_number(const char *s)
   return 1; 
 }
 
-int login(int conn_fd, char msg_data[BUFF_SIZE])
-{
-  MYSQL_RES *res;
-  MYSQL_ROW row;
+void hash_user_password(const char *password, char *hashed_password) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char *)password, strlen(password), hash);
 
-  Client *cli = head_client, *tmp = head_client;
-  char username[50], password[50];
-  char query[100];
-  int re = -1;
-
-  strcpy(username, strtok(msg_data, " "));
-  strcpy(password, strtok(NULL, " "));
-
-  while (cli->conn_fd != conn_fd && cli != NULL)
-    cli = cli->next;
-
-  sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
-  execute_query(query);
-  res = mysql_use_result(conn);
-  if ((row = mysql_fetch_row(res)) == NULL)
-  {
-    re = ACCOUNT_NOT_EXIST;
-  }
-  else
-  {
-    if (strcmp(row[2], password) == 0){
-      if (strcmp(row[3], "1") == 0){
-        while (tmp != NULL)
-        {
-          if (strcmp(tmp->login_account, username) == 0 && tmp->login_status == AUTH)
-          {
-            re = LOGGED_IN;
-            break;
-          }
-          tmp = tmp->next;
-        }
-        if (re != LOGGED_IN)
-        {
-          strcpy(cli->login_account, username);
-          cli->login_status = AUTH;
-          re = LOGIN_SUCCESS;
-        }
-      }
-      else
-        re = ACCOUNT_BLOCKED;
+    // Chuyển hash thành chuỗi hex
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sprintf(hashed_password + (i * 2), "%02x", hash[i]);
     }
-    else
-      re = WRONG_PASSWORD;
-  }
+    hashed_password[SHA256_DIGEST_LENGTH * 2] = '\0'; // Kết thúc chuỗi
+}
 
-  mysql_free_result(res);
-  return re;
+int login(int conn_fd, char msg_data[BUFF_SIZE]) {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    Client *cli = head_client, *tmp = head_client;
+    char username[50], password[50], hashed_password[SHA256_DIGEST_LENGTH * 2 + 1];
+    char query[256];
+    int re = -1;
+
+    strcpy(username, strtok(msg_data, " "));
+    strcpy(password, strtok(NULL, " "));
+
+    while (cli != NULL && cli->conn_fd != conn_fd)
+        cli = cli->next;
+
+    // Mã hóa mật khẩu người dùng nhập vào
+    hash_user_password(password, hashed_password);
+
+    sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
+    execute_query(query);
+    res = mysql_use_result(conn);
+
+    if ((row = mysql_fetch_row(res)) == NULL) {
+        re = ACCOUNT_NOT_EXIST; 
+    } else {
+        if (strcmp(row[2], hashed_password) == 0) {
+            if (strcmp(row[3], "1") == 0) {
+                while (tmp != NULL) {
+                    if (strcmp(tmp->login_account, username) == 0 && tmp->login_status == AUTH) {
+                        re = LOGGED_IN;
+                        break;
+                    }
+                    tmp = tmp->next;
+                }
+                if (re != LOGGED_IN) {
+                    strcpy(cli->login_account, username);
+                    cli->login_status = AUTH;
+                    re = LOGIN_SUCCESS;
+                }
+            } else {
+                re = ACCOUNT_BLOCKED;
+            }
+        } else {
+            re = WRONG_PASSWORD;
+        }
+    }
+
+    mysql_free_result(res);
+    return re;
 }
 
 int signup(char username[], char password[])
 {
-  MYSQL_RES *res;
-  MYSQL_ROW row;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
 
-  char query[100];
-  int re;
+    char query[256];
+    char hashed_password[SHA256_DIGEST_LENGTH * 2 + 1]; // Chuỗi hash SHA-256
+    int re;
 
-  // Khóa mutex trước khi truy cập cơ sở dữ liệu
-  pthread_mutex_lock(&mutex);
+    // Mã hóa mật khẩu
+    hash_user_password(password, hashed_password);
 
-  sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
-  execute_query(query);
-  res = mysql_use_result(conn);
-  if ((row = mysql_fetch_row(res)) == NULL)
-  {
-    mysql_free_result(res);
-    sprintf(query, "INSERT INTO account(username, password, status) VALUES('%s', '%s', 1)", username, password);
+    pthread_mutex_lock(&mutex);
+
+    sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
     execute_query(query);
     res = mysql_use_result(conn);
-    re = SIGNUP_SUCCESS;
-  }
-  else
-    re = ACCOUNT_EXIST;
+    if ((row = mysql_fetch_row(res)) == NULL)
+    {
+        mysql_free_result(res);
+        sprintf(query, "INSERT INTO account(username, password, status) VALUES('%s', '%s', 1)", username, hashed_password);
+        execute_query(query);
+        res = mysql_use_result(conn);
+        re = SIGNUP_SUCCESS;
+    }
+    else
+        re = ACCOUNT_EXIST;
 
-  mysql_free_result(res);
+    mysql_free_result(res);
 
-  // Mở khóa mutex sau khi thao tác xong
-  pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex);
 
-  return re;
+    return re;
 }
+
 
 int change_password(char username[], char new_password[])
 {

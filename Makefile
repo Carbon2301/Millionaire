@@ -1,7 +1,7 @@
 # Define compiler and libraries
 CC = gcc
 CFLAGS = -pthread
-LDFLAGS = -L/usr/local/mysql/lib -lmysqlclient
+LDFLAGS = -L/usr/local/mysql/lib -lmysqlclient -lcrypto
 CLIENT_SRC = client.c
 SERVER_SRC = server.c
 
