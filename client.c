@@ -12,7 +12,7 @@
 
 #define MAX_LINE 1024
 #define BUFF_SIZE 1024
-
+//minh ngu
 enum msg_type
 {
   DISCONNECT,
