@@ -882,7 +882,6 @@ int play_pvp()
         printf("Nhập lựa chọn của bạn: ");
         int answer;
         scanf("%d", &answer);
-
         
         msg.type = CHOICE_ANSWER;
         snprintf(msg.value, sizeof(msg.value), "%d", answer);
@@ -898,14 +897,12 @@ int play_pvp()
         break;
       case CORRECT_ANSWER:
         printf("Đúng rồi! %s\n", msg.value);
-        msg.type = WAIT_OTHER_PLAYER;
-        send(sockfd, &msg, sizeof(msg), 0);
         break;
       case LOSE:
         printf("Bạn đã thua! %s\n", msg.value);
-        msg.type = STOP_GAME;
-        send(sockfd, &msg, sizeof(msg), 0);
-        break;
+        // msg.type = STOP_GAME;
+        // send(sockfd, &msg, sizeof(msg), 0);
+        return 1;
       case OTHER_PLAYER_IS_PLAYING:
         printf("%s\n", msg.value);
         break;
