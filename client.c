@@ -887,26 +887,41 @@ int play_pvp()
         msg.type = CHOICE_ANSWER;
         snprintf(msg.value, sizeof(msg.value), "%d", answer);
         send(sockfd, &msg, sizeof(msg), 0);
-        
         break;
       case STOP_GAME:
         printf("Bạn đã dừng cuộc chơi! %s\n", msg.value);
         return 1;
+      case OVER_TIME:
+        printf("Hết giờ!\n");
+        msg.type = STOP_GAME;
+        send(sockfd, &msg, sizeof(msg), 0);
+        break;
       case CORRECT_ANSWER:
         printf("Đúng rồi! %s\n", msg.value);
+        msg.type = WAIT_OTHER_PLAYER;
+        send(sockfd, &msg, sizeof(msg), 0);
+        break;
+      case LOSE:
+        printf("Bạn đã thua! %s\n", msg.value);
+        msg.type = STOP_GAME;
+        send(sockfd, &msg, sizeof(msg), 0);
         break;
       case OTHER_PLAYER_IS_PLAYING:
         printf("%s\n", msg.value);
         break;
-      case WIN:
+      case WIN_PVP:
         printf("Bạn đã thắng! %s\n", msg.value);
         return 1;
-      case LOSE:
+      case LOSE_PVP:
         printf("Bạn đã thua! %s\n", msg.value);
         return 1;
       case DRAW:
         printf("Bạn đã draw! %s\n", msg.value);
         return 1;
+      default:
+        printf("Nhận được thông điệp không xác định: %d\n", msg.type);
+        printf("Nội dung thông điệp: %s\n", msg.value);
+        break;
       }
     }
   }

@@ -109,6 +109,7 @@ typedef struct _room
   int index_current_question[2]; // start from 1 to 15
   Question questions[2];
   int reward[2];                // set default all = 0
+  int syncQuestion;
   struct _room *next;
 } Room;
 Room *head_room = NULL;
@@ -292,6 +293,7 @@ Room *new_room()
   new->play_status[1] = -1;
   new->reward[0] = 0;
   new->reward[1] = 0;
+  new->syncQuestion = 0;
   new->next = NULL;
   return new;
 }
@@ -668,124 +670,229 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
     char str[100];
     int answer;
 
-    switch (msg.type)
-    {
-    case OVER_TIME:
-      if(isPlayPvP == 1) return 0;
-      msg.type = OVER_TIME;
-      send(conn_fd, &msg, sizeof(msg), 0);
-      printf("[%d]: Over time\n", conn_fd);
-      break;
-     case FIFTY_FIFTY:
-        printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
-        int answers[2];
-        fifty_fifty(*questions, level, answers);
-        msg.type = FIFTY_FIFTY;
-        snprintf(msg.value, sizeof(msg.value), "%d và %d", answers[0], answers[1]);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        break;
-    case CALL_PHONE:
-      printf("[%d]: Client yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
-      int phone_answer[1];
-      phone_answer[0] = call_phone(*questions, level);  
-      msg.type = CALL_PHONE;
-      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]); 
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
-    case CHANGE_QUESTION:
-      printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
-      change_question(questions, level, id);
-      msg.type = CHANGE_QUESTION;
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
-    case ASK_AUDIENCE:
-      printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
-      int sum[4];
-      ask_audience(questions, level, sum);  
-      msg.type = ASK_AUDIENCE;
-      int sum_answer = sum[0] + sum[1] + sum[2] + sum[3];
-      float sum_1 = (float)sum[0] / sum_answer * 100;
-      float sum_2 = (float)sum[1] / sum_answer * 100;
-      float sum_3 = (float)sum[2] / sum_answer * 100;
-      float sum_4 = (float)sum[3] / sum_answer * 100;
-      snprintf(msg.value, sizeof(msg.value), 
-          "Tỷ lệ chọn phương án 1 là: %.2f%%\n"
-          "Tỷ lệ chọn phương án 2 là: %.2f%%\n"
-          "Tỷ lệ chọn phương án 3 là: %.2f%%\n"
-          "Tỷ lệ chọn phương án 4 là: %.2f%%\n", sum_1, sum_2, sum_3, sum_4);
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
-    case CHOICE_ANSWER:
-      if(isPlayPvP == 1) return 0;
-      answer = atoi(strtok(msg.value, "|"));
-      if (answer == 0){
+    if (!isPlayPvP)
+    {  
+      switch (msg.type)
+      {
+      case OVER_TIME:
         if(isPlayPvP == 1) return 0;
-        msg.type = STOP_GAME;
-        insert_history(username, level);
-      if(level <= 1){
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
-        strcpy(msg.value, str);
+        msg.type = OVER_TIME;
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
+        printf("[%d]: Over time\n", conn_fd);
         break;
-      }
-      else {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 2]);
-        strcpy(msg.value, str);
+      case FIFTY_FIFTY:
+          printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
+          int answers[2];
+          fifty_fifty(*questions, level, answers);
+          msg.type = FIFTY_FIFTY;
+          snprintf(msg.value, sizeof(msg.value), "%d và %d", answers[0], answers[1]);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          break;
+      case CALL_PHONE:
+        printf("[%d]: Client yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
+        int phone_answer[1];
+        phone_answer[0] = call_phone(*questions, level);  
+        msg.type = CALL_PHONE;
+        snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]); 
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
         break;
-      }
-      }
-      else if (questions->answer[level - 1] == answer)
-      {
-        update_answer_sum(id, answer);
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
-        strcpy(msg.value, str);
-        if (level == 15)
-        {
-          msg.type = WIN;
+      case CHANGE_QUESTION:
+        printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
+        change_question(questions, level, id);
+        msg.type = CHANGE_QUESTION;
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case ASK_AUDIENCE:
+        printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
+        int sum[4];
+        ask_audience(questions, level, sum);  
+        msg.type = ASK_AUDIENCE;
+        int sum_answer = sum[0] + sum[1] + sum[2] + sum[3];
+        float sum_1 = (float)sum[0] / sum_answer * 100;
+        float sum_2 = (float)sum[1] / sum_answer * 100;
+        float sum_3 = (float)sum[2] / sum_answer * 100;
+        float sum_4 = (float)sum[3] / sum_answer * 100;
+        snprintf(msg.value, sizeof(msg.value), 
+            "Tỷ lệ chọn phương án 1 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 2 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 3 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 4 là: %.2f%%\n", sum_1, sum_2, sum_3, sum_4);
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case CHOICE_ANSWER:
+        if(isPlayPvP == 1) return 0;
+        answer = atoi(strtok(msg.value, "|"));
+        if (answer == 0){
+          if(isPlayPvP == 1) return 0;
+          msg.type = STOP_GAME;
           insert_history(username, level);
+        if(level <= 1){
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
+          strcpy(msg.value, str);
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: WIN!\n", conn_fd);
+          printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
+          break;
         }
-        else{
-          msg.type = CORRECT_ANSWER;
+        else {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 2]);
+          strcpy(msg.value, str);
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, level );
-          return 0;
+          printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
+          break;
         }
-      }
-      else
-      {
-        update_answer_sum(id, answer);
-        msg.type = LOSE;
-        insert_history(username, level);
-        if (level <= 5) {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: LOSE\n", conn_fd);
-        break;
-        } else if (level <= 10) {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: LOSE\n", conn_fd);
-        break;
-        } else {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: LOSE\n", conn_fd);
-        break;
         }
-      }
-      break;
+        else if (questions->answer[level - 1] == answer)
+        {
+          update_answer_sum(id, answer);
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
+          strcpy(msg.value, str);
+          if (level == 15)
+          {
+            msg.type = WIN;
+            insert_history(username, level);
+            send(conn_fd, &msg, sizeof(msg), 0);
+            printf("[%d]: WIN!\n", conn_fd);
+          }
+          else{
+            msg.type = CORRECT_ANSWER;
+            send(conn_fd, &msg, sizeof(msg), 0);
+            printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, level );
+            return 0;
+          }
+        }
+        else
+        {
+          update_answer_sum(id, answer);
+          msg.type = LOSE;
+          insert_history(username, level);
+          if (level <= 5) {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: LOSE\n", conn_fd);
+          break;
+          } else if (level <= 10) {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: LOSE\n", conn_fd);
+          break;
+          } else {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: LOSE\n", conn_fd);
+          break;
+          }
+        }
+        break;
 
-    default:
-      break;
+      default:
+        break;
+      }
     } 
+    
+    else
+    {
+      switch (msg.type)
+      {
+      case OVER_TIME:
+        msg.type = OVER_TIME;
+        send(conn_fd, &msg, sizeof(msg), 0);
+        printf("[%d]: Over time\n", conn_fd);
+        break;
+      case FIFTY_FIFTY:
+          printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
+          int answers[2];
+          fifty_fifty(*questions, level, answers);
+          msg.type = FIFTY_FIFTY;
+          snprintf(msg.value, sizeof(msg.value), "%d và %d", answers[0], answers[1]);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          break;
+      case CALL_PHONE:
+        printf("[%d]: Client yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
+        int phone_answer[1];
+        phone_answer[0] = call_phone(*questions, level);  
+        msg.type = CALL_PHONE;
+        snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]); 
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case CHANGE_QUESTION:
+        printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
+        change_question(questions, level, id);
+        msg.type = CHANGE_QUESTION;
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case ASK_AUDIENCE:
+        printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
+        int sum[4];
+        ask_audience(questions, level, sum);  
+        msg.type = ASK_AUDIENCE;
+        int sum_answer = sum[0] + sum[1] + sum[2] + sum[3];
+        float sum_1 = (float)sum[0] / sum_answer * 100;
+        float sum_2 = (float)sum[1] / sum_answer * 100;
+        float sum_3 = (float)sum[2] / sum_answer * 100;
+        float sum_4 = (float)sum[3] / sum_answer * 100;
+        snprintf(msg.value, sizeof(msg.value), 
+            "Tỷ lệ chọn phương án 1 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 2 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 3 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 4 là: %.2f%%\n", sum_1, sum_2, sum_3, sum_4);
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case CHOICE_ANSWER:
+        answer = atoi(strtok(msg.value, "|"));
+
+        if (answer == 0){
+          msg.type = STOP_GAME;
+          // insert_history(username, level);
+
+          sprintf(str, "Đáp án: %d\nSố cau ban da tra loi dung: %d\n", questions->answer[level - 1], level - 1);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
+          break;
+        }
+
+        else if (questions->answer[level - 1] == answer)
+        {
+          update_answer_sum(id, answer);
+          sprintf(str, "Đáp án: %d\nSố cau ban da tra loi dung: %d\n", questions->answer[level - 1], level);
+          strcpy(msg.value, str);
+          if (level == 15)
+          {
+            msg.type = WIN_PVP;
+            insert_history(username, level);
+            send(conn_fd, &msg, sizeof(msg), 0);
+            printf("[%d]: WIN!\n", conn_fd);
+          }
+          else{
+            msg.type = CORRECT_ANSWER;
+            send(conn_fd, &msg, sizeof(msg), 0);
+            printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, level );
+            return 0;
+          }
+        }
+        
+        else
+        {
+          update_answer_sum(id, answer);
+          msg.type = LOSE;
+          // insert_history(username, level);
+          sprintf(str, "Đáp án: %d\nSố cau ban da tra loi dung: %d\n", questions->answer[level - 1], level - 1);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+
+          printf("[%d]: LOSE\n", conn_fd);
+          break;
+        }
+        break;
+      default:
+        printf("Nhận được thông điệp không xác định: %d\n", msg.type);
+        printf("Nội dung thông điệp: %s\n", msg.value);
+        break;
+      }
+    }
 
     return 1;
 }
@@ -937,12 +1044,15 @@ if (room == NULL)
   {
     is_found = 0;
     room = add_room();
+
     add_client_to_room(conn_fd, room);
     start = time(NULL);
     seconds = 10; // end loop after this time has elapsed
     endwait = start + seconds;
+
     printf("Find opponent for room %d...\n", room->room_id);
     printf("start time is: %s", ctime(&start));
+    
     while (start < endwait)
     {
       if (room->client_fd[1] != 0)
@@ -966,20 +1076,25 @@ if (room == NULL)
     index_in_room = 1;
     index_doi_thu_in_room = 0;
   }
+
   if (is_found == 1)
   {
     msg.type = FOUND_PLAYER;
     strcpy(msg.value, "Đã tìm thấy người chơi khác, bắt đầu trò chơi!");
+
     if (send(conn_fd, &msg, sizeof(msg), 0) < 0)
     {
       perror("Send error!");
       delete_client(conn_fd);
       return 0;
     }
+    
     room->play_status[index_in_room] = 0;
     msg.type = ENTERED_ROOM;
+
     sprintf(str, "%d", room->room_id);
     strcpy(msg.value, str);
+
     if (send(conn_fd, &msg, sizeof(msg), 0) < 0)
     {
       perror("Send error!");
@@ -989,8 +1104,6 @@ if (room == NULL)
 
     while (room->index_current_question[index_in_room] < 15)
     {
-      printf("Sending message to client %d: type=%d, value=%s\n", conn_fd, msg.type, msg.value);
-
 initQuestion2:
       msg.type = QUESTION;
       sprintf(str, "%d", room->index_current_question[index_in_room] + 1);
@@ -1008,12 +1121,22 @@ initQuestion2:
       strcat(msg.value, str); 
       send(conn_fd, &msg, sizeof(msg), 0);
 
-      // start_reply = time(NULL);
+      start_reply = time(NULL);
       room->index_current_question[index_in_room]++;
 recvLabel2:
       recv(conn_fd, &msg, sizeof(msg), 0);
-      // end_reply = time(NULL);
-      // seconds = end_reply - start_reply;
+      end_reply = time(NULL);
+      seconds = end_reply - start_reply;
+      printf("Thời gian trả lời: %d\n", seconds);
+
+      if (seconds > 15)
+      {
+        msg.type = OVER_TIME;
+        send(conn_fd, &msg, sizeof(msg), 0);
+        printf("[%d]: Over time\n", conn_fd);
+        continue;
+      }
+
       switch (msg.type)
       {
       case OVER_TIME:
@@ -1051,9 +1174,16 @@ recvLabel2:
         return 0;
       case CHOICE_ANSWER:
         id = questions.id[room->index_current_question[index_in_room]-1];
-        re = handle_play_game(msg, conn_fd, &questions, room->index_current_question[index_in_room], id, username, 0);
-        if(re == 0) continue;
+        re = handle_play_game(msg, conn_fd, &questions, room->index_current_question[index_in_room], id, username, 1);
+        room->syncQuestion += 1;
+        if(re == 0 && room->questions == 2) continue;
         return 0;
+      case WAIT_OTHER_PLAYER:
+        msg.type = OTHER_PLAYER_IS_PLAYING;
+        strcpy(msg.value, "Đang chờ đối thủ trả lời câu hỏi...");
+        send(conn_fd, &msg, sizeof(msg), 0);
+        goto recvLabel2;
+
       case FIFTY_FIFTY:
       case CALL_PHONE:
       case ASK_AUDIENCE:
