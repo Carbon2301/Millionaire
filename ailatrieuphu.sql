@@ -1,4 +1,3 @@
-
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
@@ -8,17 +7,16 @@ USE `ailatrieuphu`;
 
 CREATE TABLE `account` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `username` varchar(50) NOT NULL,
-  `password` varchar(50) NOT NULL,
+  `username` varchar(64) NOT NULL,
+  `password` varchar(64) NOT NULL,
   `status` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 INSERT INTO `account` (`id`, `username`, `password`, `status`) VALUES
-(1, 'an', 'an', 1),
-(2, 'a', 'a', 1),
-(3, 'b', 'b', 1),
-(4, 'c', 'c', 0);
+(1, 'a', 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb', 1),
+(2, 'b', '3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d', 1),
+(3, 'c', '2e7d2c03a9507ae265ecf5b5356885a53393a2029d241394997265a1a25aefc6', 0);
 
 CREATE TABLE `questions` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -35,6 +33,14 @@ CREATE TABLE `questions` (
   `sum_b` int NOT NULL,
   `sum_c` int NOT NULL,
   `sum_d` int NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) NOT NULL,
+  `correct_answers` int NOT NULL,  -- Số câu trả lời đúng
+  `play_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Thời gian ván đấu khi lưu vào CSDL
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 

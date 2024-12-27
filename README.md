@@ -38,6 +38,7 @@ create database ailatrieuphu;
 ```sh
 mysql -u root -p ailatrieuphu < ailatrieuphu.sql 
 ```
+
 ##### 2.6. Run Server #####
 
 ```sh

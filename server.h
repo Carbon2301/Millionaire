@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <time.h>
 #include <mysql/mysql.h>
+#include <openssl/sha.h>
 
 #define BACKLOG 6
 #define BUFF_SIZE 1024
@@ -47,7 +48,8 @@ enum msg_type
   FIFTY_FIFTY,
   CALL_PHONE,
   CHANGE_QUESTION,
-  ASK_AUDIENCE
+  ASK_AUDIENCE,
+  HISTORY
 };
 
 enum login_status
@@ -94,6 +96,7 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 MYSQL *conn;
 
 int connect_to_database();
+void close_database();
 int execute_query(char *query);
 Question get_questions();
 int fifty_fifty(Question q, int level, int incorrect_answer[2]);
@@ -107,27 +110,21 @@ void delete_client(int conn_fd);
 Client *find_client(int conn_fd);
 int is_number(const char *s);
 void *thread_start(void *client_fd);
+void hash_user_password(const char *password, char *hashed_password);
 int login(int conn_fd, char msg_data[BUFF_SIZE]);
 int signup(char username[BUFF_SIZE], char password[BUFF_SIZE]);
 int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
-int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id);
-int handle_play_alone(int);
+int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id,char username[BUFF_SIZE]);
+int handle_play_alone(int conn_fd, char username[BUFF_SIZE]);
 
 /*---------------- Tính năng -------------------*/
 int connect_to_database()
 {
-  char server[50], username[50], password[50], database[50];
-  int port;
-
-  FILE *f = fopen("config", "r");
-  if (f == NULL)
-  {
-    printf("Error opening file!\n");
-    exit(1);
-  }
-
-  fscanf(f, "DB_HOST=%s\nDB_PORT=%d\nDB_DATABASE=%s\nDB_USERNAME=%s\nDB_PASSWORD=%s", server, &port, database, username, password);
-  fclose(f);
+    char server[50] = "127.0.0.1";
+    int port = 3306;
+    char database[50] = "ailatrieuphu";
+    char username[50] = "root";
+    char password[50] = "TrinhAn04";
 
   conn = mysql_init(NULL);
   if (!mysql_real_connect(conn, server, username, password, database, port, NULL, 0)) {
@@ -135,6 +132,13 @@ int connect_to_database()
     exit(1);
   }
   return 1;
+}
+
+void close_database() {
+    if (conn) {
+        mysql_close(conn);
+        printf("Database connection closed.\n");
+    }
 }
 
 int execute_query(char *query)
@@ -173,25 +177,18 @@ Question get_questions(){
     questions.sum_d[i] = atoi(row[11]);
     mysql_free_result(res);
   }
-
-  printf("Get question success\n");
   return questions;
 }
 
 int fifty_fifty(Question q, int level, int answers[2]) {
     srand(time(0));
-    int correct_answer = q.answer[level - 1]; // Đáp án đúng
+    int correct_answer = q.answer[level - 1]; 
     int incorrect_answer;
-
-    // Chọn ngẫu nhiên một đáp án sai khác đáp án đúng
     do {
-        incorrect_answer = rand() % 4 + 1;  // Tạo một đáp án sai ngẫu nhiên từ 1 đến 4
+        incorrect_answer = rand() % 4 + 1;
     } while (incorrect_answer == correct_answer);
-
-    // Đặt đáp án đúng vào `answers[0]` và đáp án sai vào `answers[1]`
     answers[0] = correct_answer;
     answers[1] = incorrect_answer;
-
     return 1;
 }
 
@@ -206,10 +203,10 @@ int change_question(Question *q, int level, int id) {
 
   char query[1000];
   sprintf(query, 
-          "SELECT question, a, b, c, d, answer, reward, id , sum_a, sum_b, sum_c, sum_d"
+          "SELECT question, a, b, c, d, answer, reward, id , sum_a, sum_b, sum_c, sum_d "
           "FROM questions "
           "WHERE level = %d AND id != %d "
-          "ORDER BY RAND() LIMIT 1", 
+          "ORDER BY RAND() LIMIT 1",
           level, id);
   execute_query(query);
   res = mysql_store_result(conn);
@@ -264,6 +261,7 @@ void catch_ctrl_c_and_exit(int sig)
     delete_client(head_client->conn_fd);
   }
   printf("\nBye\n");
+  close_database();
   exit(0);
 }
 
@@ -316,24 +314,22 @@ void delete_client(int conn_fd)
 
 Client *find_client(int conn_fd)
 {
-    pthread_mutex_lock(&client_mutex);  // Khóa mutex để bảo vệ truy cập danh sách client
-
+    pthread_mutex_lock(&client_mutex);
     Client *tmp = head_client;
     while (tmp != NULL)
     {
-        if (tmp->conn_fd == conn_fd)  // Nếu tìm thấy client với conn_fd khớp
+        if (tmp->conn_fd == conn_fd) 
         {
-            Client *found = tmp;  // Lưu trữ client tìm được
-            pthread_mutex_unlock(&client_mutex);  // Mở khóa mutex trước khi trả về
-            return found;  // Trả về client tìm được
+            Client *found = tmp;  
+            pthread_mutex_unlock(&client_mutex);
+            return found;
         }
-        tmp = tmp->next;  // Tiến tới node tiếp theo trong danh sách
+        tmp = tmp->next;
     }
 
-    pthread_mutex_unlock(&client_mutex);  // Mở khóa mutex nếu không tìm thấy client
-    return NULL;  // Trả về NULL nếu không tìm thấy client với conn_fd đó
+    pthread_mutex_unlock(&client_mutex);
+    return NULL;  //Trả về NULL nếu không tìm thấy
 }
-
 
 int is_number(const char *s)
 {
@@ -346,126 +342,227 @@ int is_number(const char *s)
   return 1; 
 }
 
-int login(int conn_fd, char msg_data[BUFF_SIZE])
-{
-  MYSQL_RES *res;
-  MYSQL_ROW row;
+void hash_user_password(const char *password, char *hashed_password) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char *)password, strlen(password), hash);
 
-  Client *cli = head_client, *tmp = head_client;
-  char username[50], password[50];
-  char query[100];
-  int re = -1;
-
-  strcpy(username, strtok(msg_data, " "));
-  strcpy(password, strtok(NULL, " "));
-
-  while (cli->conn_fd != conn_fd && cli != NULL)
-    cli = cli->next;
-
-  sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
-  execute_query(query);
-  res = mysql_use_result(conn);
-  if ((row = mysql_fetch_row(res)) == NULL)
-  {
-    re = ACCOUNT_NOT_EXIST;
-  }
-  else
-  {
-    if (strcmp(row[2], password) == 0){
-      if (strcmp(row[3], "1") == 0){
-        while (tmp != NULL)
-        {
-          if (strcmp(tmp->login_account, username) == 0 && tmp->login_status == AUTH)
-          {
-            re = LOGGED_IN;
-            break;
-          }
-          tmp = tmp->next;
-        }
-        if (re != LOGGED_IN)
-        {
-          strcpy(cli->login_account, username);
-          cli->login_status = AUTH;
-          re = LOGIN_SUCCESS;
-        }
-      }
-      else
-        re = ACCOUNT_BLOCKED;
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sprintf(hashed_password + (i * 2), "%02x", hash[i]);
     }
-    else
-      re = WRONG_PASSWORD;
-  }
+    hashed_password[SHA256_DIGEST_LENGTH * 2] = '\0';
+}
 
-  mysql_free_result(res);
-  return re;
+int login(int conn_fd, char msg_data[BUFF_SIZE]) {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    Client *cli = head_client, *tmp = head_client;
+    char username[50], password[50], hashed_password[SHA256_DIGEST_LENGTH * 2 + 1];
+    char query[256];
+    int re = -1;
+
+    strcpy(username, strtok(msg_data, " "));
+    strcpy(password, strtok(NULL, " "));
+
+    while (cli != NULL && cli->conn_fd != conn_fd)
+        cli = cli->next;
+
+    // Mã hóa mật khẩu người dùng nhập vào
+    hash_user_password(password, hashed_password);
+
+    sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
+    execute_query(query);
+    res = mysql_use_result(conn);
+
+    if ((row = mysql_fetch_row(res)) == NULL) {
+        re = ACCOUNT_NOT_EXIST; 
+    } else {
+        if (strcmp(row[2], hashed_password) == 0) {
+            if (strcmp(row[3], "1") == 0) {
+                while (tmp != NULL) {
+                    if (strcmp(tmp->login_account, username) == 0 && tmp->login_status == AUTH) {
+                        re = LOGGED_IN;
+                        break;
+                    }
+                    tmp = tmp->next;
+                }
+                if (re != LOGGED_IN) {
+                    strcpy(cli->login_account, username);
+                    cli->login_status = AUTH;
+                    re = LOGIN_SUCCESS;
+                }
+            } else {
+                re = ACCOUNT_BLOCKED;
+            }
+        } else {
+            re = WRONG_PASSWORD;
+        }
+    }
+
+    mysql_free_result(res);
+    return re;
 }
 
 int signup(char username[], char password[])
 {
-  MYSQL_RES *res;
-  MYSQL_ROW row;
+    MYSQL_RES *res;
+    MYSQL_ROW row;
 
-  char query[100];
-  int re;
+    char query[256];
+    char hashed_password[SHA256_DIGEST_LENGTH * 2 + 1]; // Chuỗi hash SHA-256
+    int re;
 
-  // Khóa mutex trước khi truy cập cơ sở dữ liệu
-  pthread_mutex_lock(&mutex);
+    // Mã hóa mật khẩu
+    hash_user_password(password, hashed_password);
 
-  sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
-  execute_query(query);
-  res = mysql_use_result(conn);
-  if ((row = mysql_fetch_row(res)) == NULL)
-  {
-    mysql_free_result(res);
-    sprintf(query, "INSERT INTO account(username, password, status) VALUES('%s', '%s', 1)", username, password);
+    pthread_mutex_lock(&mutex);
+
+    sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
     execute_query(query);
     res = mysql_use_result(conn);
-    re = SIGNUP_SUCCESS;
-  }
-  else
-    re = ACCOUNT_EXIST;
-
-  mysql_free_result(res);
-
-  // Mở khóa mutex sau khi thao tác xong
-  pthread_mutex_unlock(&mutex);
-
-  return re;
-}
-
-int change_password(char username[], char new_password[])
-{
-  MYSQL_RES *res;
-  MYSQL_ROW row;
-
-  char query[100];
-  int re;
-
-  sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
-  execute_query(query);
-  res = mysql_use_result(conn);
-  if ((row = mysql_fetch_row(res)) != NULL)
-  {
-    if (strcmp(row[2], new_password) == 0)
+    if ((row = mysql_fetch_row(res)) == NULL)
     {
-      re = SAME_OLD_PASSWORD;
+        mysql_free_result(res);
+        sprintf(query, "INSERT INTO account(username, password, status) VALUES('%s', '%s', 1)", username, hashed_password);
+        execute_query(query);
+        res = mysql_use_result(conn);
+        re = SIGNUP_SUCCESS;
     }
-    else {
-      mysql_free_result(res);
-      sprintf(query, "UPDATE account SET password = '%s' WHERE username = '%s'", new_password, username);
-      execute_query(query);
-      res = mysql_use_result(conn);
-      re = CHANGE_PASSWORD_SUCCESS;
-    }
-  }
-  else
-    re = ACCOUNT_NOT_EXIST;
+    else
+        re = ACCOUNT_EXIST;
 
-  mysql_free_result(res);
-  return re;
+    mysql_free_result(res);
+
+    pthread_mutex_unlock(&mutex);
+
+    return re;
 }
 
-int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id){
+
+int change_password(char username[], char new_password[]) {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+
+    char query[256];
+    char hashed_password[SHA256_DIGEST_LENGTH * 2 + 1];
+    char current_hashed_password[SHA256_DIGEST_LENGTH * 2 + 1];
+    int re;
+
+    hash_user_password(new_password, hashed_password);
+
+    sprintf(query, "SELECT * FROM account WHERE username = '%s'", username);
+    execute_query(query);
+    res = mysql_use_result(conn);
+
+    if ((row = mysql_fetch_row(res)) != NULL) {
+        strncpy(current_hashed_password, row[2], SHA256_DIGEST_LENGTH * 2 + 1);
+        if (strcmp(current_hashed_password, hashed_password) == 0) {
+            re = SAME_OLD_PASSWORD; 
+        } else {
+            mysql_free_result(res);
+            sprintf(query, "UPDATE account SET password = '%s' WHERE username = '%s'", hashed_password, username);
+            execute_query(query);
+            res = mysql_use_result(conn);
+
+            re = CHANGE_PASSWORD_SUCCESS;
+        }
+    } else {
+        re = ACCOUNT_NOT_EXIST;
+    }
+
+    mysql_free_result(res);
+    return re;
+}
+
+void update_answer_sum(int id, int answer) {
+    char query[500];
+    pthread_mutex_lock(&mutex);
+    switch (answer) {
+        case 1:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_a = sum_a + 1 WHERE id = %d", id);
+            break;
+        case 2:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_b = sum_b + 1 WHERE id = %d", id);
+            break;
+        case 3:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_c = sum_c + 1 WHERE id = %d", id);
+            break;
+        case 4:
+            snprintf(query, sizeof(query), "UPDATE questions SET sum_d = sum_d + 1 WHERE id = %d", id);
+            break;
+        default:
+            printf("Lựa chọn không hợp lệ!\n");
+            break;
+    }
+
+    pthread_mutex_unlock(&mutex);
+}
+
+void insert_history(char username[], int level) {
+    char query[500];
+    pthread_mutex_lock(&mutex);
+    snprintf(query, sizeof(query), "INSERT INTO history (username, correct_answers) VALUES ('%s', %d)", username, level - 1);
+    if (mysql_query(conn, query)) {
+        fprintf(stderr, "Lỗi khi chèn vào cơ sở dữ liệu: %s\n", mysql_error(conn));
+    }
+    pthread_mutex_unlock(&mutex);
+}
+
+void get_history_by_username(char user_name[], int conn_fd) {
+    char query[500];
+    snprintf(query, sizeof(query), 
+        "SELECT username, correct_answers, DATE_ADD(play_time, INTERVAL 7 HOUR) AS adjusted_play_time "
+        "FROM history WHERE username = '%s'", user_name);
+
+    if (mysql_query(conn, query)) {
+        fprintf(stderr, "Lỗi khi thực hiện truy vấn: %s\n", mysql_error(conn));
+        return;
+    }
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    if (result == NULL) {
+        fprintf(stderr, "Lỗi khi lấy kết quả truy vấn: %s\n", mysql_error(conn));
+        return;
+    }
+
+    int num_fields = mysql_num_fields(result);
+    if (num_fields == 0) {
+        printf("Không tìm thấy lịch sử cho username: %s\n", user_name);
+        mysql_free_result(result);
+        return;
+    }
+
+    char response[BUFF_SIZE] = "";
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(result))) {
+        char row_result[256];
+        snprintf(row_result, sizeof(row_result), "Username: %s, Correct Answers: %s, Time: %s\n",
+                 row[0] ? row[0] : "NULL",
+                 row[1] ? row[1] : "NULL",
+                 row[2] ? row[2] : "NULL");
+
+        if (strlen(response) + strlen(row_result) < sizeof(response)) {
+            strncat(response, row_result, sizeof(response) - strlen(response) - 1);
+        } else {
+            printf("Dữ liệu quá lớn, không thể thêm vào.\n");
+            break;
+        }
+    }
+
+    Message msg;
+    msg.type = HISTORY;
+    strcpy(msg.data_type, "string");
+    msg.length = strlen(response);
+    strcpy(msg.value, response);
+
+    ssize_t bytes_sent = send(conn_fd, &msg, sizeof(msg), 0);
+    if (bytes_sent == -1) {
+        perror("Gửi lịch sử thất bại");
+    }
+    mysql_free_result(result);
+}
+
+int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id, char username[]){
     char str[100];
     int answer;
 
@@ -476,9 +573,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       send(conn_fd, &msg, sizeof(msg), 0);
       printf("[%d]: Over time\n", conn_fd);
       break;
-
      case FIFTY_FIFTY:
-        // Xử lý trợ giúp 50/50
         printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
         int answers[2];
         fifty_fifty(*questions, level, answers);
@@ -491,17 +586,15 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       int phone_answer[1];
       phone_answer[0] = call_phone(*questions, level);  
       msg.type = CALL_PHONE;
-      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]);  // Chỉ gửi một số điện thoại
+      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]); 
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
-
     case CHANGE_QUESTION:
       printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
       change_question(questions, level, id);
       msg.type = CHANGE_QUESTION;
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
-
     case ASK_AUDIENCE:
       printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
       int sum[4];
@@ -512,7 +605,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       float sum_2 = (float)sum[1] / sum_answer * 100;
       float sum_3 = (float)sum[2] / sum_answer * 100;
       float sum_4 = (float)sum[3] / sum_answer * 100;
-
       snprintf(msg.value, sizeof(msg.value), 
           "Tỷ lệ chọn phương án 1 là: %.2f%%\n"
           "Tỷ lệ chọn phương án 2 là: %.2f%%\n"
@@ -520,11 +612,11 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
           "Tỷ lệ chọn phương án 4 là: %.2f%%\n", sum_1, sum_2, sum_3, sum_4);
       send(conn_fd, &msg, sizeof(msg), 0);
       break;
-    
     case CHOICE_ANSWER:
       answer = atoi(strtok(msg.value, "|"));
       if (answer == 0){
         msg.type = STOP_GAME;
+        insert_history(username, level);
       if(level <= 1){
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
@@ -542,13 +634,15 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else if (questions->answer[level - 1] == answer)
       {
+        update_answer_sum(id, answer);
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
         strcpy(msg.value, str);
         if (level == 15)
         {
           msg.type = WIN;
+          insert_history(username, level);
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: Bạn đã thắng!\n", conn_fd);
+          printf("[%d]: WIN!\n", conn_fd);
         }
         else{
           msg.type = CORRECT_ANSWER;
@@ -559,29 +653,30 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
       }
       else
       {
+        update_answer_sum(id, answer);
         msg.type = LOSE;
+        insert_history(username, level);
         if (level <= 5) {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Bạn đã thua\n", conn_fd);
+        printf("[%d]: LOSE\n", conn_fd);
         break;
         } else if (level <= 10) {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Bạn đã thua\n", conn_fd);
+        printf("[%d]: LOSE\n", conn_fd);
         break;
         } else {
         sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
         strcpy(msg.value, str);
         send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Bạn đã thua\n", conn_fd);
+        printf("[%d]: LOSE\n", conn_fd);
         break;
         }
       }
       break;
-
 
     default:
       break;
@@ -590,7 +685,7 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
     return 1;
 }
 
-int handle_play_alone(int conn_fd)
+int handle_play_alone(int conn_fd, char username[])
 {
   Message msg;
   Question questions = get_questions();
@@ -617,28 +712,43 @@ initQuestion:
     level++;
 
 recvLabel:
-    recv(conn_fd, &msg, sizeof(msg), 0);
+    int recvBytes = recv(conn_fd, &msg, sizeof(msg), 0);
+
+        // Xử lý lỗi hoặc timeout
+        if (recvBytes <= 0) {
+            if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                printf("[%d]: Timeout: Không có phản hồi từ '%s' cho câu hỏi %d\n", conn_fd, username, level);
+            } else if (recvBytes == 0) {
+                printf("[%d]: Client đã ngắt kết nối trong khi trả lời câu hỏi %d\n", conn_fd, level);
+            } else {
+                perror("Recv error");
+            }
+            close(conn_fd);
+            delete_client(conn_fd);
+            return -1;
+        }
 
     switch (msg.type)
     {
     case OVER_TIME:
     case STOP_GAME:
-      handle_play_game(msg, conn_fd, &questions, level, id);
+      handle_play_game(msg, conn_fd, &questions, level, id, username);
       return 0;
     case CHOICE_ANSWER:
-      re = handle_play_game(msg, conn_fd, &questions, level, id);
+      id = questions.id[level-1];
+      re = handle_play_game(msg, conn_fd, &questions, level, id, username);
       if(re == 0) continue;
       return 0;
     case FIFTY_FIFTY:
     case CALL_PHONE:
     case CHANGE_QUESTION:
       id = questions.id[level-1];
-      handle_play_game(msg, conn_fd, &questions, level, id);
+      handle_play_game(msg, conn_fd, &questions, level, id, username);
       level--;
       goto initQuestion;
     case ASK_AUDIENCE:
       id = questions.id[level-1];
-      handle_play_game(msg, conn_fd, &questions, level, id);
+      handle_play_game(msg, conn_fd, &questions, level, id, username);
       level--;
     default:
       break;
@@ -647,7 +757,6 @@ recvLabel:
   return 1;
 }
 
-
 void *thread_start(void *client_fd)
 {
   pthread_detach(pthread_self());
@@ -655,7 +764,20 @@ void *thread_start(void *client_fd)
   int recvBytes, re;
   Message msg;
   int conn_fd = *((int *)client_fd);
-  Client *cli = head_client;
+    free(client_fd);
+
+    // Thiết lập timeout cho socket
+    struct timeval timeout;
+    timeout.tv_sec = 20;  // Thời gian chờ 20 giây
+    timeout.tv_usec = 0;
+
+    if (setsockopt(conn_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        perror("Error setting socket timeout");
+        close(conn_fd);
+        pthread_exit(NULL);
+    }
+
+    Client *cli = head_client;
 
   while (cli->conn_fd != conn_fd && cli != NULL)
     cli = cli->next;
@@ -693,7 +815,11 @@ void *thread_start(void *client_fd)
 
       case PLAY_ALONE:
         printf("[%d]: '%s' đang chơi đơn!\n", conn_fd, cli->login_account);
-        handle_play_alone(conn_fd);
+        handle_play_alone(conn_fd, cli->login_account);
+        break;
+      case HISTORY:
+        printf("[%d]: '%s' yêu cầu xem lịch sử đấu!\n", conn_fd, cli->login_account);
+        get_history_by_username(cli->login_account, conn_fd);
         break;
       case LOGOUT:
         printf("[%d]: Goodbye '%s'\n", conn_fd, cli->login_account);
@@ -763,12 +889,18 @@ void *thread_start(void *client_fd)
       break;
     }
   }
-  if (recvBytes <= 0)
-  {
-    printf("[%d]: Client đã ngắt kết nối!\n", conn_fd);
-    close(conn_fd);
-    delete_client(conn_fd);
-  }
+   // Kiểm tra lý do thoát khỏi vòng lặp
+    if (recvBytes <= 0) {
+        if (errno == EWOULDBLOCK || errno == EAGAIN) {
+            printf("[%d]: Timeout: Không có phản hồi nào trong 20 giây\n", conn_fd);
+        } else if (recvBytes == 0) {
+            printf("[%d]: Client ngắt kết nối\n", conn_fd);
+        } else {
+            perror("Recv error");
+        }
+        close(conn_fd);
+        delete_client(conn_fd);
+    }
 
   pthread_exit(NULL);
 }

@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <ctype.h>
 #include <time.h>
+#include <openssl/sha.h>
 
 #define MAX_LINE 1024
 #define BUFF_SIZE 1024
@@ -40,7 +41,8 @@ enum msg_type
   FIFTY_FIFTY,
   CALL_PHONE,
   CHANGE_QUESTION,
-  ASK_AUDIENCE
+  ASK_AUDIENCE,
+  HISTORY
 };
 
 typedef struct _message
@@ -57,7 +59,6 @@ typedef struct _account
   int login_status; // 0: not login; 1: logged in
 } Account;
 
-
   int is_number(const char *s);
   int validate_ip(char *ip);
   int menu_start();
@@ -69,6 +70,7 @@ typedef struct _account
   int signup(char username[], char password[]);
   int logout();
   int change_password(char password[]);
+  void receive_history(int sockfd);
   int show_menu_not_login();
   int show_menu_logged();
   int play_alone();
@@ -124,49 +126,73 @@ int ask_audience_used = 0;
    return 1;
  }
 
- int menu_not_login()
- {
-   char input[MAX_LINE];
-   int op;
-   do
-   {
-     printf("\nVui lòng chọn một trong các chức năng sau để tiếp tục:\n");
-     printf("\t1. Đăng nhập\n");
-     printf("\t2. Đăng ký\n");
-     printf("\t3. Trở về\n");
-     printf("Lựa chọn của bạn là: ");
-     scanf(" %[^\n]", input);
-     if (strlen(input) != 1 || !isdigit(input[0]))
-       break;
-     op = atoi(input);
-   } while (op > 3 || op < 1);
-   return op;
- }
+ int menu_not_login() {
+    char input[MAX_LINE];
+    int op;
 
- int menu_logged()
- {
-   char input[MAX_LINE];
-   int op;
-   do
-   {
-     printf("\nMenu:\n");
-     printf("\t1. Thay đổi mật khẩu.\n");
-     printf("\t2. Chơi đơn. Khi vào chơi, lưu ý: \n");
-     printf("\t\t'0': Xin dừng cuộc chơi\n");
-     printf("\t\t'1 -> 4': Trả lời câu hỏi\n");
-     printf("\t\t'5': Trợ giúp 50/50\n");
-     printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
-     printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
-     printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
-     printf("\t4. Đăng xuất.\n");
-     printf("Lựa chọn của bạn là: ");
-     scanf(" %[^\n]", input);
-     if (strlen(input) != 1 || !isdigit(input[0]))
-       break;
-     op = atoi(input);
-   } while (op > 4 || op < 1);
-   return op;
- }
+    do {
+        printf("\nVui lòng chọn một trong các chức năng sau để tiếp tục:\n");
+        printf("\t1. Đăng nhập\n");
+        printf("\t2. Đăng ký\n");
+        printf("\t3. Trở về\n");
+        printf("Lựa chọn của bạn là: ");
+        scanf(" %[^\n]", input);
+
+        int is_number = 1;
+        for (int i = 0; i < strlen(input); i++) {
+            if (!isdigit(input[i])) {
+                is_number = 0;
+                break;
+            }
+        }
+
+        if (!is_number) {
+            printf("Lựa chọn không hợp lệ. Vui lòng nhập lại.\n");
+            op = 0;
+        } else {
+            op = atoi(input);
+        }
+    } while (op > 3 || op < 1);
+
+    return op;
+}
+
+int menu_logged() {
+    char input[MAX_LINE];
+    int op;
+    do {
+        printf("\nMenu:\n");
+        printf("\t1. Thay đổi mật khẩu.\n");
+        printf("\t2. Chơi đơn. Khi vào chơi, lưu ý: \n");
+        printf("\t\t'0': Xin dừng cuộc chơi\n");
+        printf("\t\t'1 -> 4': Trả lời câu hỏi\n");
+        printf("\t\t'5': Trợ giúp 50/50\n");
+        printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
+        printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
+        printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
+        printf("\t4. Hiển thị lịch sử ván đấu\n");
+        printf("\t5. Đăng xuất.\n");
+        printf("Lựa chọn của bạn là: ");
+        scanf(" %[^\n]", input);
+
+        int is_number = 1;
+        for (int i = 0; i < strlen(input); i++) {
+            if (!isdigit(input[i])) {
+                is_number = 0;
+                break;
+            }
+        }
+
+        if (!is_number) {
+            printf("Lựa chọn không hợp lệ. Vui lòng nhập lại.\n");
+            op = 0; 
+        } else {
+            op = atoi(input);
+        }
+    } while (op > 5 || op < 1);
+
+    return op;
+}
 
 int connect_to_server(char serverIP[], int serverPort) {
     
@@ -197,7 +223,6 @@ int connect_to_server(char serverIP[], int serverPort) {
     printf("Đã kết nối!\n");
     return 1;
 }
-
 
 int disconnect_to_server()
 {
@@ -230,11 +255,8 @@ int login(char username[], char password[]) {
     return msg.type;
 }
 
-
-
 int signup(char username[], char password[]) {
     
-
     Message msg;
     msg.type = SIGNUP;
     strcpy(msg.data_type, "string");
@@ -266,6 +288,21 @@ int logout(){
     printf("Gửi dữ liệu không thành công");
   }
   return msg.type;
+}
+
+void receive_history(int sockfd) {
+    Message msg;
+    ssize_t bytes_received;
+
+    bytes_received = recv(sockfd, &msg, sizeof(msg), 0);
+    if (bytes_received <= 0) {
+        perror("Không thể nhận dữ liệu hoặc kết nối đã bị đóng");
+        return;
+    }
+    if (msg.type == HISTORY) {
+        printf("Nhận thông tin lịch sử từ server:\n");
+        printf("%s\n", msg.value);
+    }
 }
 
 int change_password(char password[]){
@@ -444,6 +481,11 @@ int change_password(char password[]){
        play_alone();
        break;
      case 4:
+       msg.type = HISTORY;
+       send(sockfd, &msg, sizeof(msg), 0);
+       receive_history(sockfd);
+       break;
+     case 5:
        msg.type = LOGOUT;
        send(sockfd, &msg, sizeof(msg), 0);
        printf("Bạn đã đăng xuất\n");
@@ -794,8 +836,6 @@ int play_alone() {
         }
     }
 }
-
-
 
  int main(int argc, char *argv[])
 {

@@ -99,5 +99,6 @@ int main(int argc, char const *argv[])
   }
 
   close(listen_fd); 
+  close_database();
   return 0;
 }
