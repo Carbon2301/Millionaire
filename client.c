@@ -903,6 +903,15 @@ int play_pvp()
         // msg.type = STOP_GAME;
         // send(sockfd, &msg, sizeof(msg), 0);
         return 1;
+      case WAIT_OTHER_PLAYER:
+        printf("%s\n", msg.value);
+        break;
+      case FOUND_PLAYER:
+        printf("%s\n", msg.value);
+        break;
+      case ENTERED_ROOM:
+        printf("%s\n", msg.value);
+        break;
       case OTHER_PLAYER_IS_PLAYING:
         printf("%s\n", msg.value);
         break;
