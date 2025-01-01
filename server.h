@@ -13,6 +13,7 @@
 #include <pthread.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/time.h>
 #include <mysql/mysql.h>
 #include <openssl/sha.h>
 
@@ -21,6 +22,7 @@
 #define TRUE 1
 #define FALSE 0
 #define MAX_TIME_WAIT 5
+#define TIME_OUT 40
 
 enum msg_type
 {
@@ -884,7 +886,7 @@ int handle_play_pvp(int conn_fd)
   int is_found = 0, index_in_room = -1, index_doi_thu_in_room = -1, is_me_win = -1, re, thoi_gian_tra_loi = 0, dap_an, id;
   int send_question = 0, wait_time = 0;
   Room *room;
-  char str[BUFF_SIZE], username[BUFF_SIZE];
+  char str[2048], username[BUFF_SIZE];
   time_t start, endwait, seconds, start_reply, end_reply;
   
   msg.type = WAIT_OTHER_PLAYER;
@@ -1213,7 +1215,7 @@ void *thread_start(void *client_fd)
 
     // Thiết lập timeout cho socket
     struct timeval timeout;
-    timeout.tv_sec = 20;  // Thời gian chờ 20 giây
+    timeout.tv_sec = TIME_OUT;
     timeout.tv_usec = 0;
 
     if (setsockopt(conn_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
@@ -1340,7 +1342,7 @@ void *thread_start(void *client_fd)
    // Kiểm tra lý do thoát khỏi vòng lặp
     if (recvBytes <= 0) {
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            printf("[%d]: Timeout: Không có phản hồi nào trong 20 giây\n", conn_fd);
+            printf("[%d]: Timeout: Không có phản hồi nào trong %d giây\n", conn_fd, TIME_OUT);
         } else if (recvBytes == 0) {
             printf("[%d]: Client ngắt kết nối\n", conn_fd);
         } else {
