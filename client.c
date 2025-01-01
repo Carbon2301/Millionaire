@@ -78,7 +78,6 @@ typedef struct _account
   int disconnect_to_server();
   int login(char username[], char password[]);
   int signup(char username[], char password[]);
-  int logout();
   int change_password(char password[]);
   void receive_history(int sockfd);
   int show_menu_not_login();
@@ -294,16 +293,6 @@ int signup(char username[], char password[]) {
     return msg.type;
 }
 
-int logout(){
-  Message msg;
-  msg.type = LOGOUT;
-  if (send(sockfd, &msg, sizeof(Message), 0) < 0)
-  {
-    printf("Gửi dữ liệu không thành công");
-  }
-  return msg.type;
-}
-
 void receive_history(int sockfd) {
   Message msg;
   ssize_t bytes_received;
@@ -342,116 +331,73 @@ int change_password(char password[]){
 }
 
 int show_menu_not_login()
-{
-  Message msg;
-  char username[100], password[100];
-  int show_menu_not_login = 1;
-  while (show_menu_not_login)
-  {
-    int choice = menu_not_login();
+ {
+   Message msg;
+   char username[100], password[100];
+   int show_menu_not_login = 1;
+   while (show_menu_not_login)
+   {
+     int choice = menu_not_login();
 
-    switch (choice)
-    {
-    case 1:
-      msg.type = LOGIN;
-      printf("Enter username: ");
-      scanf(" %[^\n]", username);
-      printf("Enter password: ");
-      scanf(" %[^\n]", password);
-      strcpy(msg.data_type, "string");
-      strcpy(msg.value, username);
-      strcat(msg.value, " ");
-      strcat(msg.value, password);
-      msg.length = strlen(msg.value);
-      if (send(sockfd, &msg, sizeof(msg), 0) < 0)
-      {
-        printf("Gửi dữ liệu không thành công\n");
-      }
-      else
-      {
-        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-        if (recvBytes < 0)
-        {
-          printf("Nhận dữ liệu không thành công\n");
-        }
-        else
-        {
-          if (msg.type == LOGIN_SUCCESS)
-          {
-            acc.login_status = 1;
-            strcpy(acc.username, username);
-            printf("Welcome, %s\n", msg.value);
-            show_menu_logged();
-          }
-          else if (msg.type == ACCOUNT_BLOCKED)
-        {
-          printf("Tài khoản: '%s' đã bị khóa.\n", msg.value);
-        }
-          else if(msg.type == LOGGED_IN)
-          {
-            printf("Tài khoản: '%s' đang được đăng nhập ở nơi khác. Vui lòng thử lại!\n", msg.value);
-          }
-          else if(msg.type == ACCOUNT_NOT_EXIST)
-          {
-            printf("Tài khoản không tồn tại!");
-          }
-          else if(msg.type == WRONG_PASSWORD)
-          {
-            printf("Mật khẩu sai, vui lòng thử lại!");
-          }
-        }
-      }
-      break;
-    case 2:
+     switch (choice) {
+        case 1: { // Đăng nhập
+            printf("Enter username: ");
+            scanf(" %[^\n]", username);
+            printf("Enter password: ");
+            scanf(" %[^\n]", password);
 
+            int login_result = login(username, password);
+            if (login_result == LOGIN_SUCCESS) {
+                acc.login_status = 1;
+                strcpy(acc.username, username);
+                printf("Welcome, %s\n", username);
+                show_menu_logged();
+            } else if (login_result == ACCOUNT_BLOCKED) {
+                printf("Tài khoản '%s' đã bị khóa.\n", username);
+            } else if (login_result == LOGGED_IN) {
+                printf("Tài khoản '%s' đang được đăng nhập ở nơi khác. Vui lòng thử lại!\n", username);
+            } else if (login_result == ACCOUNT_NOT_EXIST) {
+                printf("Tài khoản không tồn tại!\n");
+            } else if (login_result == WRONG_PASSWORD) {
+                printf("Mật khẩu sai, vui lòng thử lại!\n");
+            } else {
+                printf("Đã xảy ra lỗi khi đăng nhập.\n");
+            }
+            break;
+        }
+     case 2:
       printf("Username: ");
       scanf(" %[^\n]", username);
       printf("Password: ");
       scanf(" %[^\n]", password);
 
-      if (strlen(username) + 1 + strlen(password) >= sizeof(msg.value)) {
-        printf("Tên đăng nhập hoặc mật khẩu quá dài\n");
-        break;
-      }
+      int result = signup(username, password);
 
-      msg.type = SIGNUP;
-      strcpy(msg.data_type, "string");
-
-      snprintf(msg.value, sizeof(msg.value), "%s %s", username, password);
-      msg.length = strlen(msg.value);
-
-      if (send(sockfd, &msg, sizeof(msg), 0) < 0) {
-        perror("Gửi dữ liệu không thành công");
-        break;
-      }
-
-      recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-      if (recvBytes < 0) {
-        perror("Nhận dữ liệu không thành công");
-      } else if (recvBytes == 0) {
-        printf("Kết nối bị đóng từ server\n");
-      } else {
-        if (msg.type == ACCOUNT_EXIST) {
-          printf("Tài khoản đã tồn tại: %s\n", msg.value);
-        } else if (msg.type == SIGNUP_SUCCESS) {
-          printf("Đăng ký thành công tài khoản: %s\n", msg.value);
-        }
+      // Xử lý phản hồi từ server
+      if (result == ACCOUNT_EXIST) {
+          printf("Tài khoản đã tồn tại: %s\n", username);
+      } else if (result == SIGNUP_SUCCESS) {
+          printf("Đăng ký thành công tài khoản: %s\n", username);
+      } else if (result == -1) {
+          printf("Đăng ký thất bại do lỗi hệ thống\n");
+      } else if (result == 2){
+          printf("Tên đăng nhập hoặc mật khẩu quá dài!");
       }
       break;
 
-    case 3:
-      printf("Trở về\n");
-      msg.type = DISCONNECT;
-      send(sockfd, &msg, sizeof(msg), 0);
-      show_menu_not_login = 0;
-      break;
-    default:
-      printf("Lựa chọn không hợp lệ\n");
-      break;
-    }
-  }
-  return 0;
-}
+     case 3:
+       printf("Trở về\n");
+       msg.type = DISCONNECT;
+       send(sockfd, &msg, sizeof(msg), 0);
+       show_menu_not_login = 0;
+       break;
+     default:
+       printf("Lựa chọn không hợp lệ\n");
+       break;
+     }
+   }
+   return 0;
+ }
 
 int show_menu_logged()
 {
