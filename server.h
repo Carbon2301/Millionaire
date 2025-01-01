@@ -53,6 +53,7 @@ enum msg_type
   CHANGE_QUESTION,
   ASK_AUDIENCE,
   HISTORY,
+  HISTORY_PVP,
   PLAY_PVP,
   FOUND_PLAYER,
   ENTERED_ROOM,
@@ -115,6 +116,7 @@ typedef struct _room
   Question questions;
   int reward[2];                 // set default all = 0
   int is_answered[2];
+  char player_name[2][BUFF_SIZE];
   struct _room *next;
 } Room;
 Room *head_room = NULL;
@@ -149,13 +151,15 @@ int login(int conn_fd, char msg_data[BUFF_SIZE]);
 int signup(char username[BUFF_SIZE], char password[BUFF_SIZE]);
 void update_answer_sum(int id, int answer);
 void insert_history(char username[], int level);
+void insert_history_pvp(char username[], char opponent[], char result[]);
 void get_history_by_username(char user_name[], int conn_fd);
+void get_history_pvp_by_username(char user_name[], int conn_fd);
 void send_online_players(int conn_fd);
 void *send_data(void *arg);
 int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id,char username[BUFF_SIZE]);
 int handle_play_alone(int conn_fd, char username[BUFF_SIZE]);
-int handle_play_pvp(int conn_fd);
+int handle_play_pvp(int conn_fd, char  username[]);
 
 /*---------------- Tính năng -------------------*/
 int connect_to_database()
@@ -562,7 +566,6 @@ int signup(char username[], char password[])
     return re;
 }
 
-
 int change_password(char username[], char new_password[]) {
     MYSQL_RES *res;
     MYSQL_ROW row;
@@ -632,6 +635,17 @@ void insert_history(char username[], int level) {
     pthread_mutex_unlock(&mutex);
 }
 
+void insert_history_pvp(char username[], char opponent[], char result[]) {
+    char query[500];
+    pthread_mutex_lock(&mutex);
+
+    snprintf(query, sizeof(query), "INSERT INTO history_pvp (username, opponent, result) VALUES ('%s', '%s', '%s')", username, opponent, result);
+    if (mysql_query(conn, query)) {
+        fprintf(stderr, "Lỗi khi chèn vào cơ sở dữ liệu: %s\n", mysql_error(conn));
+    }
+    pthread_mutex_unlock(&mutex);
+}
+
 void get_history_by_username(char user_name[], int conn_fd) {
     char query[500];
     snprintf(query, sizeof(query), 
@@ -686,6 +700,61 @@ void get_history_by_username(char user_name[], int conn_fd) {
     mysql_free_result(result);
 }
 
+void get_history_pvp_by_username(char user_name[], int conn_fd) {
+    char query[500];
+    snprintf(query, sizeof(query), 
+        "SELECT username, result, opponent, DATE_ADD(play_time, INTERVAL 7 HOUR) AS adjusted_play_time "
+        "FROM history_pvp WHERE username = '%s'", user_name);
+
+    if (mysql_query(conn, query)) {
+        fprintf(stderr, "Lỗi khi thực hiện truy vấn: %s\n", mysql_error(conn));
+        return;
+    }
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    if (result == NULL) {
+        fprintf(stderr, "Lỗi khi lấy kết quả truy vấn: %s\n", mysql_error(conn));
+        return;
+    }
+
+    int num_fields = mysql_num_fields(result);
+    if (num_fields == 0) {
+        printf("Không tìm thấy lịch sử cho username: %s\n", user_name);
+        mysql_free_result(result);
+        return;
+    }
+
+    char response[BUFF_SIZE] = "";
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(result))) {
+        char row_result[256];
+        snprintf(row_result, sizeof(row_result), "Username: %s %s Username: %s || Time: %s\n",
+                 row[0] ? row[0] : "NULL",
+                 row[1] ? row[1] : "NULL",
+                 row[2] ? row[2] : "NULL",
+                 row[3] ? row[3] : "NULL");
+
+        if (strlen(response) + strlen(row_result) < sizeof(response)) {
+            strncat(response, row_result, sizeof(response) - strlen(response) - 1);
+        } else {
+            printf("Dữ liệu quá lớn, không thể thêm vào.\n");
+            break;
+        }
+    }
+
+    Message msg;
+    msg.type = HISTORY;
+    strcpy(msg.data_type, "string");
+    msg.length = strlen(response);
+    strcpy(msg.value, response);
+
+    ssize_t bytes_sent = send(conn_fd, &msg, sizeof(msg), 0);
+    if (bytes_sent == -1) {
+        perror("Gửi lịch sử thất bại");
+    }
+    mysql_free_result(result);
+}
+
 void send_online_players(int conn_fd) {
     pthread_mutex_lock(&client_mutex);
     Client *current = head_client;
@@ -712,7 +781,6 @@ void send_online_players(int conn_fd) {
     }
     return;
 }
-
 
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id, char username[]){
     char str[100];
@@ -909,13 +977,13 @@ recvLabel:
   return 1;
 }
 
-int handle_play_pvp(int conn_fd)
+int handle_play_pvp(int conn_fd, char username[])
 {
   Message msg;
   int is_found = 0, index_in_room = -1, index_doi_thu_in_room = -1, is_me_win = -1, re, thoi_gian_tra_loi = 0, dap_an, id;
   int send_question = 0, wait_time = 0;
   Room *room;
-  char str[2048], username[BUFF_SIZE];
+  char str[2048];
   time_t start, endwait, seconds, start_reply, end_reply;
   
   msg.type = WAIT_OTHER_PLAYER;
@@ -1004,6 +1072,7 @@ if (room == NULL)
     }
 
     int room_id_current = room->room_id;
+    strcpy(room->player_name[index_in_room],username);
 
     if(send_question){
       while (room->index_current_question < 15)
@@ -1063,29 +1132,34 @@ if (room == NULL)
           wait_time++;sleep(1);
           if (wait_time >= MAX_TIME_WAIT)
           {
-            if (room->is_answered[0] == 0)
+            if (room->is_answered[index_in_room] == 0)
             {
-              if (room->is_answered[1] == 0)
+              if (room->is_answered[index_doi_thu_in_room] == 0)
               {
                 msg.type = DRAW;
-                send(room->client_fd[0], &msg, sizeof(msg), 0);
-                send(room->client_fd[1], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+                insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Draw");
                 printf("Room [%d]: Draw\n", room->room_id);
               }
               else
               {
                 msg.type = LOSE_PVP;
-                send(room->client_fd[0], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+                insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Lose");
                 msg.type = WIN_PVP;
-                send(room->client_fd[1], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+                insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Win");
               }
             }
             else
             {
               msg.type = LOSE_PVP;
-              send(room->client_fd[1], &msg, sizeof(msg), 0);
+              send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+              insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Lose");
               msg.type = WIN_PVP;
-              send(room->client_fd[0], &msg, sizeof(msg), 0);
+              send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+              insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Win");
             }
             printf("Room [%d]: Timeout\n", room->room_id);            
             delete_room(room->room_id);
@@ -1100,6 +1174,7 @@ if (room == NULL)
           send(room->client_fd[0], &msg, sizeof(msg), 0);
           send(room->client_fd[1], &msg, sizeof(msg), 0);
           printf("Room [%d]: Draw\n", room->room_id);
+          insert_history_pvp(room->player_name[0], room->player_name[1], "Draw");
           sleep(1);
           delete_room(room->room_id);
           return 0;
@@ -1113,6 +1188,7 @@ if (room == NULL)
           send(room->client_fd[0], &msg, sizeof(msg), 0);
           send(room->client_fd[1], &msg, sizeof(msg), 0);
           printf("Room [%d]: Draw\n", room->room_id);
+          insert_history_pvp(room->player_name[0], room->player_name[1], "Draw");
           sleep(1);
           delete_room(room->room_id);
           return 0;
@@ -1120,8 +1196,10 @@ if (room == NULL)
         } else if (room->reward[index_in_room] > room->reward[index_doi_thu_in_room]){
           msg.type = WIN_PVP;
           send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+          insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Win");
           msg.type = LOSE_PVP;
           send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+          insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Lose");
           printf("Room [%d]: %s win\n", room->room_id, username);
           sleep(1);       
           delete_room(room->room_id);
@@ -1130,8 +1208,10 @@ if (room == NULL)
         {
           msg.type = LOSE_PVP;
           send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+          insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Lose");
           msg.type = WIN_PVP;
           send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+          insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Win");
           printf("Room [%d]: %s win\n", room->room_id, username);
           sleep(1);
           delete_room(room->room_id);
@@ -1179,32 +1259,36 @@ if (room == NULL)
           wait_time++;
           if (wait_time >= MAX_TIME_WAIT)
           {
-            if (room->is_answered[0] == 0)
+            if (room->is_answered[index_in_room] == 0)
             {
-              if (room->is_answered[1] == 0)
+              if (room->is_answered[index_doi_thu_in_room] == 0)
               {
                 msg.type = DRAW;
-                send(room->client_fd[0], &msg, sizeof(msg), 0);
-                send(room->client_fd[1], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+                insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Draw");
                 printf("Room [%d]: Draw\n", room->room_id);
               }
               else
               {
                 msg.type = LOSE_PVP;
-                send(room->client_fd[0], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+                insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Lose");
                 msg.type = WIN_PVP;
-                send(room->client_fd[1], &msg, sizeof(msg), 0);
+                send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+                insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Win");
               }
             }
             else
             {
               msg.type = LOSE_PVP;
-              send(room->client_fd[1], &msg, sizeof(msg), 0);
+              send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+              insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Lose");
               msg.type = WIN_PVP;
-              send(room->client_fd[0], &msg, sizeof(msg), 0);
+              send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+              insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Win");
             }
-            printf("Room [%d]: Timeout\n", room->room_id);
-            sleep(1);
+            printf("Room [%d]: Timeout\n", room->room_id);            
             delete_room(room->room_id);
             return 0;
           }
@@ -1294,11 +1378,15 @@ void *thread_start(void *client_fd)
         handle_play_alone(conn_fd, cli->login_account);
         break;
       case PLAY_PVP:
-        handle_play_pvp(conn_fd);
+        handle_play_pvp(conn_fd, cli->login_account);
         break;
       case HISTORY:
         printf("[%d]: '%s' yêu cầu xem lịch sử đấu!\n", conn_fd, cli->login_account);
         get_history_by_username(cli->login_account, conn_fd);
+        break;
+      case HISTORY_PVP:
+        printf("[%d]: '%s' yêu cầu xem lịch sử đấu!\n", conn_fd, cli->login_account);
+        get_history_pvp_by_username(cli->login_account, conn_fd);
         break;
       case VIEW_ONLINE_PLAYERS:
         send_online_players(conn_fd);

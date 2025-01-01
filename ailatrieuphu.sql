@@ -43,6 +43,15 @@ CREATE TABLE `history` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE `history_pvp` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `username` varchar(50) NOT NULL,
+  `opponent` varchar(50) NOT NULL,
+  `result` varchar(50) NOT NULL,
+  `play_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 INSERT INTO `questions` (`id`, `level`, `question`, `a`, `b`, `c`, `d`, `answer`, `reward`, `sum_a`, `sum_b`, `sum_c`, `sum_d`) VALUES
 (1, 1, 'Điền tiếp vào câu tục ngữ sau: \"Chớp đông nhay nháy, gà gáy thì ....\"?', 'Toi', 'Mưa', 'Nắng', 'Râm', 2, 200 , 1 ,2 , 3, 4),

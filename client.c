@@ -43,6 +43,7 @@ enum msg_type
   CHANGE_QUESTION,
   ASK_AUDIENCE,
   HISTORY,
+  HISTORY_PVP,
   PLAY_PVP,
   FOUND_PLAYER,
   ENTERED_ROOM,
@@ -182,8 +183,9 @@ int menu_logged() {
         printf("\t\t'8': Trợ giúp hỏi ý kiến khán giả\n");
         printf("\t3. Chơi với người khác - PVP\n");
         printf("\t4. Hiển thị lịch sử ván đấu\n");
-        printf("\t5. Xem danh sách người chơi đang online.\n");
-        printf("\t6. Đăng xuất.\n");
+        printf("\t5. Hiển thị lịch sử đấu PVP\n");
+        printf("\t6. Xem danh sách người chơi đang online.\n");
+        printf("\t7. Đăng xuất.\n");
         printf("Lựa chọn của bạn là: ");
         scanf(" %[^\n]", input);
 
@@ -201,7 +203,7 @@ int menu_logged() {
         } else {
             op = atoi(input);
         }
-    } while (op > 6 || op < 1);
+    } while (op > 7 || op < 1);
 
     return op;
 }
@@ -303,18 +305,21 @@ int logout(){
 }
 
 void receive_history(int sockfd) {
-    Message msg;
-    ssize_t bytes_received;
+  Message msg;
+  ssize_t bytes_received;
 
-    bytes_received = recv(sockfd, &msg, sizeof(msg), 0);
-    if (bytes_received <= 0) {
-        perror("Không thể nhận dữ liệu hoặc kết nối đã bị đóng");
-        return;
-    }
-    if (msg.type == HISTORY) {
-        printf("Nhận thông tin lịch sử từ server:\n");
-        printf("%s\n", msg.value);
-    }
+  bytes_received = recv(sockfd, &msg, sizeof(msg), 0);
+  if (bytes_received <= 0) {
+      perror("Không thể nhận dữ liệu hoặc kết nối đã bị đóng");
+      return;
+  }
+  if (msg.type == HISTORY) {
+      printf("Nhận thông tin lịch sử từ server:\n");
+      printf("%s\n", msg.value);
+  } else if (msg.type == HISTORY_PVP) {
+      printf("Nhận thông tin lịch sử từ server:\n");
+      printf("%s\n", msg.value);
+  }
 }
 
 int change_password(char password[]){
@@ -336,194 +341,199 @@ int change_password(char password[]){
   return msg.type;
 }
 
- int show_menu_not_login()
- {
-   Message msg;
-   char username[100], password[100];
-   int show_menu_not_login = 1;
-   while (show_menu_not_login)
-   {
-     int choice = menu_not_login();
+int show_menu_not_login()
+{
+  Message msg;
+  char username[100], password[100];
+  int show_menu_not_login = 1;
+  while (show_menu_not_login)
+  {
+    int choice = menu_not_login();
 
-     switch (choice)
-     {
-     case 1:
-       msg.type = LOGIN;
-       printf("Enter username: ");
-       scanf(" %[^\n]", username);
-       printf("Enter password: ");
-       scanf(" %[^\n]", password);
-       strcpy(msg.data_type, "string");
-       strcpy(msg.value, username);
-       strcat(msg.value, " ");
-       strcat(msg.value, password);
-       msg.length = strlen(msg.value);
-       if (send(sockfd, &msg, sizeof(msg), 0) < 0)
-       {
-         printf("Gửi dữ liệu không thành công\n");
-       }
-       else
-       {
-         recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-         if (recvBytes < 0)
-         {
-           printf("Nhận dữ liệu không thành công\n");
-         }
-         else
-         {
-           if (msg.type == LOGIN_SUCCESS)
-           {
-             acc.login_status = 1;
-             strcpy(acc.username, username);
-             printf("Welcome, %s\n", msg.value);
-             show_menu_logged();
-           }
-           else if (msg.type == ACCOUNT_BLOCKED)
+    switch (choice)
+    {
+    case 1:
+      msg.type = LOGIN;
+      printf("Enter username: ");
+      scanf(" %[^\n]", username);
+      printf("Enter password: ");
+      scanf(" %[^\n]", password);
+      strcpy(msg.data_type, "string");
+      strcpy(msg.value, username);
+      strcat(msg.value, " ");
+      strcat(msg.value, password);
+      msg.length = strlen(msg.value);
+      if (send(sockfd, &msg, sizeof(msg), 0) < 0)
+      {
+        printf("Gửi dữ liệu không thành công\n");
+      }
+      else
+      {
+        recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+        if (recvBytes < 0)
+        {
+          printf("Nhận dữ liệu không thành công\n");
+        }
+        else
+        {
+          if (msg.type == LOGIN_SUCCESS)
           {
-            printf("Tài khoản: '%s' đã bị khóa.\n", msg.value);
+            acc.login_status = 1;
+            strcpy(acc.username, username);
+            printf("Welcome, %s\n", msg.value);
+            show_menu_logged();
           }
-           else if(msg.type == LOGGED_IN)
-           {
-             printf("Tài khoản: '%s' đang được đăng nhập ở nơi khác. Vui lòng thử lại!\n", msg.value);
-           }
-           else if(msg.type == ACCOUNT_NOT_EXIST)
-           {
-             printf("Tài khoản không tồn tại!");
-           }
-           else if(msg.type == WRONG_PASSWORD)
-           {
-             printf("Mật khẩu sai, vui lòng thử lại!");
-           }
-         }
-       }
-       break;
-     case 2:
+          else if (msg.type == ACCOUNT_BLOCKED)
+        {
+          printf("Tài khoản: '%s' đã bị khóa.\n", msg.value);
+        }
+          else if(msg.type == LOGGED_IN)
+          {
+            printf("Tài khoản: '%s' đang được đăng nhập ở nơi khác. Vui lòng thử lại!\n", msg.value);
+          }
+          else if(msg.type == ACCOUNT_NOT_EXIST)
+          {
+            printf("Tài khoản không tồn tại!");
+          }
+          else if(msg.type == WRONG_PASSWORD)
+          {
+            printf("Mật khẩu sai, vui lòng thử lại!");
+          }
+        }
+      }
+      break;
+    case 2:
 
-       printf("Username: ");
-       scanf(" %[^\n]", username);
-       printf("Password: ");
-       scanf(" %[^\n]", password);
+      printf("Username: ");
+      scanf(" %[^\n]", username);
+      printf("Password: ");
+      scanf(" %[^\n]", password);
 
-       if (strlen(username) + 1 + strlen(password) >= sizeof(msg.value)) {
-         printf("Tên đăng nhập hoặc mật khẩu quá dài\n");
-         break;
-       }
+      if (strlen(username) + 1 + strlen(password) >= sizeof(msg.value)) {
+        printf("Tên đăng nhập hoặc mật khẩu quá dài\n");
+        break;
+      }
 
-       msg.type = SIGNUP;
-       strcpy(msg.data_type, "string");
+      msg.type = SIGNUP;
+      strcpy(msg.data_type, "string");
 
-       snprintf(msg.value, sizeof(msg.value), "%s %s", username, password);
-       msg.length = strlen(msg.value);
+      snprintf(msg.value, sizeof(msg.value), "%s %s", username, password);
+      msg.length = strlen(msg.value);
 
-       if (send(sockfd, &msg, sizeof(msg), 0) < 0) {
-         perror("Gửi dữ liệu không thành công");
-         break;
-       }
+      if (send(sockfd, &msg, sizeof(msg), 0) < 0) {
+        perror("Gửi dữ liệu không thành công");
+        break;
+      }
 
-       recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
-       if (recvBytes < 0) {
-         perror("Nhận dữ liệu không thành công");
-       } else if (recvBytes == 0) {
-         printf("Kết nối bị đóng từ server\n");
-       } else {
-         if (msg.type == ACCOUNT_EXIST) {
-           printf("Tài khoản đã tồn tại: %s\n", msg.value);
-         } else if (msg.type == SIGNUP_SUCCESS) {
-           printf("Đăng ký thành công tài khoản: %s\n", msg.value);
-         }
-       }
-       break;
+      recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+      if (recvBytes < 0) {
+        perror("Nhận dữ liệu không thành công");
+      } else if (recvBytes == 0) {
+        printf("Kết nối bị đóng từ server\n");
+      } else {
+        if (msg.type == ACCOUNT_EXIST) {
+          printf("Tài khoản đã tồn tại: %s\n", msg.value);
+        } else if (msg.type == SIGNUP_SUCCESS) {
+          printf("Đăng ký thành công tài khoản: %s\n", msg.value);
+        }
+      }
+      break;
 
-     case 3:
-       printf("Trở về\n");
-       msg.type = DISCONNECT;
-       send(sockfd, &msg, sizeof(msg), 0);
-       show_menu_not_login = 0;
-       break;
-     default:
-       printf("Lựa chọn không hợp lệ\n");
-       break;
-     }
-   }
-   return 0;
- }
+    case 3:
+      printf("Trở về\n");
+      msg.type = DISCONNECT;
+      send(sockfd, &msg, sizeof(msg), 0);
+      show_menu_not_login = 0;
+      break;
+    default:
+      printf("Lựa chọn không hợp lệ\n");
+      break;
+    }
+  }
+  return 0;
+}
 
- int show_menu_logged()
- {
-   int show_menu_login = 1;
-   Message msg;
-   char pass[BUFF_SIZE], re_pass[BUFF_SIZE];
+int show_menu_logged()
+{
+  int show_menu_login = 1;
+  Message msg;
+  char pass[BUFF_SIZE], re_pass[BUFF_SIZE];
 
-   while (show_menu_login)
-   {
-     int choice = menu_logged();
-     switch (choice)
-     {
-     case 1:
-       while (1)
-       {
-         printf("Mật khẩu mới: ");
-         scanf(" %[^\n]", pass);
-         printf("Nhập lại mật khẩu mới: ");
-         scanf(" %[^\n]", re_pass);
-         if (strcmp(pass, "") == 0 || strcmp(re_pass, "") == 0)
-         {
-           printf("Mật khẩu không được trùng\n");
-           continue;
-         }
+  while (show_menu_login)
+  {
+    int choice = menu_logged();
+    switch (choice)
+    {
+    case 1:
+      while (1)
+      {
+        printf("Mật khẩu mới: ");
+        scanf(" %[^\n]", pass);
+        printf("Nhập lại mật khẩu mới: ");
+        scanf(" %[^\n]", re_pass);
+        if (strcmp(pass, "") == 0 || strcmp(re_pass, "") == 0)
+        {
+          printf("Mật khẩu không được trùng\n");
+          continue;
+        }
 
-         if (strcmp(pass, re_pass) == 0)
-         {
-           msg.type = CHANGE_PASSWORD;
-           strcpy(msg.value, pass);
-           send(sockfd, &msg, sizeof(msg), 0);
-           recv(sockfd, &msg, sizeof(msg), 0);
-           printf("%s\n", msg.value);
-           break;
-         }
-         else
-         {
-           printf("Mật khẩu không khớp\n");
-         }
-       }
-       break;
-     case 2:
-       msg.type = PLAY_ALONE;
-       send(sockfd, &msg, sizeof(msg), 0);
-       play_alone();
-       break;
-     case 3:
-       msg.type = PLAY_PVP;
-       send(sockfd, &msg, sizeof(msg), 0);
-       play_pvp();
-       break;
-     case 4:
-       msg.type = HISTORY;
-       send(sockfd, &msg, sizeof(msg), 0);
-       receive_history(sockfd);
-       break;
-     case 5:
-       msg.type = VIEW_ONLINE_PLAYERS;
-       send(sockfd, &msg, sizeof(msg), 0);
-       recv(sockfd, &msg, sizeof(msg), 0);
-       if (msg.type == HISTORY) {
-           printf("%s\n", msg.value);
-       }
-       break;
-     case 6:
-       msg.type = LOGOUT;
-       send(sockfd, &msg, sizeof(msg), 0);
-       printf("Bạn đã đăng xuất\n");
-       acc.login_status = 0;
-       show_menu_login = 0;
-       break;
-     default:
-       printf("Lựa chọn không hợp lệ\n");
-       break;
-     }
-   }
-   return 0;
- }
+        if (strcmp(pass, re_pass) == 0)
+        {
+          msg.type = CHANGE_PASSWORD;
+          strcpy(msg.value, pass);
+          send(sockfd, &msg, sizeof(msg), 0);
+          recv(sockfd, &msg, sizeof(msg), 0);
+          printf("%s\n", msg.value);
+          break;
+        }
+        else
+        {
+          printf("Mật khẩu không khớp\n");
+        }
+      }
+      break;
+    case 2:
+      msg.type = PLAY_ALONE;
+      send(sockfd, &msg, sizeof(msg), 0);
+      play_alone();
+      break;
+    case 3:
+      msg.type = PLAY_PVP;
+      send(sockfd, &msg, sizeof(msg), 0);
+      play_pvp();
+      break;
+    case 4:
+      msg.type = HISTORY;
+      send(sockfd, &msg, sizeof(msg), 0);
+      receive_history(sockfd);
+      break;
+    case 5:
+      msg.type = HISTORY_PVP;
+      send(sockfd, &msg, sizeof(msg), 0);
+      receive_history(sockfd);
+      break;
+    case 6:
+      msg.type = VIEW_ONLINE_PLAYERS;
+      send(sockfd, &msg, sizeof(msg), 0);
+      recv(sockfd, &msg, sizeof(msg), 0);
+      if (msg.type == HISTORY) {
+          printf("%s\n", msg.value);
+      }
+      break;
+    case 7:
+      msg.type = LOGOUT;
+      send(sockfd, &msg, sizeof(msg), 0);
+      printf("Bạn đã đăng xuất\n");
+      acc.login_status = 0;
+      show_menu_login = 0;
+      break;
+    default:
+      printf("Lựa chọn không hợp lệ\n");
+      break;
+    }
+  }
+  return 0;
+}
 
 int play_alone() {
     printf("Bạn chọn chơi đơn. Hãy trả lời các câu hỏi dưới đây để nhận phần thưởng!\n");
@@ -968,7 +978,7 @@ int play_pvp()
   return 1;
 }
 
- int main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
    if(argc != 3)
    {
