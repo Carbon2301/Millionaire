@@ -50,6 +50,7 @@ enum msg_type
   OTHER_PLAYER_IS_PLAYING,
   WIN_PVP,
   LOSE_PVP,
+  COUNT_DOWN,
   DRAW
 };
 
@@ -833,6 +834,8 @@ int play_pvp()
 {
   Message msg;
   recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+  int timeout = 0;
+
   if (recvBytes <= 0)
   {
     perror("Máy chủ ngắt kết nối");
@@ -864,9 +867,12 @@ int play_pvp()
     return 0;
   }
   printf("Enter room %s\n", msg.value);
+
   while (1)
   {
+    timeout = 0;
     recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+    
     if (recvBytes < 0)
     {
       perror("Máy chủ ngắt kết nối");
@@ -883,6 +889,7 @@ int play_pvp()
         int answer;
         scanf("%d", &answer);
         
+
         msg.type = CHOICE_ANSWER;
         snprintf(msg.value, sizeof(msg.value), "%d", answer);
         send(sockfd, &msg, sizeof(msg), 0);
@@ -896,33 +903,28 @@ int play_pvp()
         send(sockfd, &msg, sizeof(msg), 0);
         break;
       case CORRECT_ANSWER:
-        printf("Đúng rồi! %s\n", msg.value);
+        printf("%s\n", msg.value);
         break;
-      case LOSE:
-        printf("Bạn đã thua! %s\n", msg.value);
-        // msg.type = STOP_GAME;
-        // send(sockfd, &msg, sizeof(msg), 0);
-        return 1;
       case WAIT_OTHER_PLAYER:
         printf("%s\n", msg.value);
         break;
       case FOUND_PLAYER:
         printf("%s\n", msg.value);
         break;
+      case NOT_FOUND_PLAYER:
+        printf("%s\n", msg.value);
+        return 0;
       case ENTERED_ROOM:
         printf("%s\n", msg.value);
         break;
-      case OTHER_PLAYER_IS_PLAYING:
-        printf("%s\n", msg.value);
-        break;
       case WIN_PVP:
-        printf("Bạn đã thắng! %s\n", msg.value);
+        printf("Bạn đã thắng!\n");
         return 1;
       case LOSE_PVP:
-        printf("Bạn đã thua! %s\n", msg.value);
+        printf("Bạn đã thua!\n");
         return 1;
       case DRAW:
-        printf("Bạn đã draw! %s\n", msg.value);
+        printf("Hòa!\n");
         return 1;
       default:
         printf("Nhận được thông điệp không xác định: %d\n", msg.type);
