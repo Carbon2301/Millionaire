@@ -87,7 +87,6 @@ typedef struct _account
 
 int sockfd;
 int recvBytes, sendBytes;
-char sendBuff[MAX_LINE] = {0}, recvBuff[MAX_LINE];
 struct sockaddr_in server, client;
 Account acc;
 int fifty_fifty_used = 0;
@@ -361,7 +360,7 @@ int show_menu_not_login()
             } else if (login_result == WRONG_PASSWORD) {
                 printf("Mật khẩu sai, vui lòng thử lại!\n");
             } else {
-                printf("Đã xảy ra lỗi khi đăng nhập.\n");
+                printf("Server bị mất kết nối!\n");
             }
             break;
         }
@@ -382,6 +381,8 @@ int show_menu_not_login()
           printf("Đăng ký thất bại do lỗi hệ thống\n");
       } else if (result == 2){
           printf("Tên đăng nhập hoặc mật khẩu quá dài!");
+      } else {
+          printf("Server bị mất kết nối!");
       }
       break;
 

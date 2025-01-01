@@ -763,12 +763,11 @@ void send_online_players(int conn_fd) {
     while (current != NULL) {
         count++;
         if (current->login_status == AUTH) {
-            // Chuyển count thành chuỗi trước khi nối vào response
-            char count_str[20];  // Tăng kích thước mảng count_str
-            sprintf(count_str, "%d. ", count);  // Chuyển số thành chuỗi
-            strcat(response, count_str);  // Nối chuỗi chứa count vào response
-            strcat(response, current->login_account);  // Nối tên tài khoản
-            strcat(response, "\n");  // Nối ký tự xuống dòng
+            char count_str[20];
+            sprintf(count_str, "%d. ", count);
+            strcat(response, count_str);
+            strcat(response, current->login_account);
+            strcat(response, "\n");
         }
         current = current->next;
     }
@@ -1145,6 +1144,7 @@ if (room == NULL)
                 send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
                 send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
                 insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Draw");
+                insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Draw");
                 printf("Room [%d]: Draw\n", room->room_id);
               }
               else
@@ -1179,7 +1179,8 @@ if (room == NULL)
           send(room->client_fd[0], &msg, sizeof(msg), 0);
           send(room->client_fd[1], &msg, sizeof(msg), 0);
           printf("Room [%d]: Draw\n", room->room_id);
-          insert_history_pvp(room->player_name[0], room->player_name[1], "Draw");
+          insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Draw");
+          insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Draw");
           sleep(1);
           delete_room(room->room_id);
           return 0;
@@ -1193,7 +1194,8 @@ if (room == NULL)
           send(room->client_fd[0], &msg, sizeof(msg), 0);
           send(room->client_fd[1], &msg, sizeof(msg), 0);
           printf("Room [%d]: Draw\n", room->room_id);
-          insert_history_pvp(room->player_name[0], room->player_name[1], "Draw");
+          insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Draw");
+          insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Draw");
           sleep(1);
           delete_room(room->room_id);
           return 0;
@@ -1272,6 +1274,7 @@ if (room == NULL)
                 send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
                 send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
                 insert_history_pvp(room->player_name[index_in_room], room->player_name[index_doi_thu_in_room], "Draw");
+                insert_history_pvp(room->player_name[index_doi_thu_in_room], room->player_name[index_in_room], "Draw");
                 printf("Room [%d]: Draw\n", room->room_id);
               }
               else
