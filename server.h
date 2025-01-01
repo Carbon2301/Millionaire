@@ -61,7 +61,7 @@ enum msg_type
   OTHER_PLAYER_IS_PLAYING,
   WIN_PVP,
   LOSE_PVP,
-  COUNT_DOWN,
+  VIEW_ONLINE_PLAYERS,
   DRAW
 };
 
@@ -150,6 +150,7 @@ int signup(char username[BUFF_SIZE], char password[BUFF_SIZE]);
 void update_answer_sum(int id, int answer);
 void insert_history(char username[], int level);
 void get_history_by_username(char user_name[], int conn_fd);
+void send_online_players(int conn_fd);
 void *send_data(void *arg);
 int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id,char username[BUFF_SIZE]);
@@ -684,6 +685,34 @@ void get_history_by_username(char user_name[], int conn_fd) {
     }
     mysql_free_result(result);
 }
+
+void send_online_players(int conn_fd) {
+    pthread_mutex_lock(&client_mutex);
+    Client *current = head_client;
+    char response[BUFF_SIZE] = "Danh sách người chơi đang online:\n";
+
+    while (current != NULL) {
+        if (current->login_status == AUTH) {
+            strcat(response, current->login_account);
+            strcat(response, "\n");
+        }
+        current = current->next;
+    }
+
+    pthread_mutex_unlock(&client_mutex);
+
+    Message msg;
+    msg.type = HISTORY; // Dùng tạm loại tin nhắn này cho danh sách online
+    strcpy(msg.data_type, "string");
+    strcpy(msg.value, response);
+    msg.length = strlen(response);
+
+    if (send(conn_fd, &msg, sizeof(msg), 0) < 0) {
+        perror("Gửi danh sách người chơi online thất bại");
+    }
+    return;
+}
+
 
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id, char username[]){
     char str[100];
@@ -1270,6 +1299,9 @@ void *thread_start(void *client_fd)
       case HISTORY:
         printf("[%d]: '%s' yêu cầu xem lịch sử đấu!\n", conn_fd, cli->login_account);
         get_history_by_username(cli->login_account, conn_fd);
+        break;
+      case VIEW_ONLINE_PLAYERS:
+        send_online_players(conn_fd);
         break;
       case LOGOUT:
         printf("[%d]: Goodbye '%s'\n", conn_fd, cli->login_account);

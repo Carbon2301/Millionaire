@@ -51,7 +51,7 @@ enum msg_type
   OTHER_PLAYER_IS_PLAYING,
   WIN_PVP,
   LOSE_PVP,
-  COUNT_DOWN,
+  VIEW_ONLINE_PLAYERS,
   DRAW
 };
 
@@ -182,7 +182,8 @@ int menu_logged() {
         printf("\t\t'8': Trợ giúp hỏi ý kiến khán giả\n");
         printf("\t3. Chơi với người khác - PVP\n");
         printf("\t4. Hiển thị lịch sử ván đấu\n");
-        printf("\t5. Đăng xuất.\n");
+        printf("\t5. Xem danh sách người chơi đang online.\n");
+        printf("\t6. Đăng xuất.\n");
         printf("Lựa chọn của bạn là: ");
         scanf(" %[^\n]", input);
 
@@ -200,7 +201,7 @@ int menu_logged() {
         } else {
             op = atoi(input);
         }
-    } while (op > 5 || op < 1);
+    } while (op > 6 || op < 1);
 
     return op;
 }
@@ -502,6 +503,14 @@ int change_password(char password[]){
        receive_history(sockfd);
        break;
      case 5:
+       msg.type = VIEW_ONLINE_PLAYERS;
+       send(sockfd, &msg, sizeof(msg), 0);
+       recv(sockfd, &msg, sizeof(msg), 0);
+       if (msg.type == HISTORY) {
+           printf("%s\n", msg.value);
+       }
+       break;
+     case 6:
        msg.type = LOGOUT;
        send(sockfd, &msg, sizeof(msg), 0);
        printf("Bạn đã đăng xuất\n");
