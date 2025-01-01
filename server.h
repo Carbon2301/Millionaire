@@ -1153,7 +1153,19 @@ if (room == NULL)
           delete_room(room->room_id);
           return 0;
         } else if (room->reward[0] == room->reward[1]){
-          continue;
+          if (room->questions.answer[room->index_current_question-1] == answers)
+          {
+            continue;
+          }
+          else {
+          msg.type = DRAW;
+          send(room->client_fd[0], &msg, sizeof(msg), 0);
+          send(room->client_fd[1], &msg, sizeof(msg), 0);
+          printf("Room [%d]: Draw\n", room->room_id);
+          sleep(1);
+          delete_room(room->room_id);
+          return 0;
+        }
         } else if (room->reward[index_in_room] > room->reward[index_doi_thu_in_room]){
           msg.type = WIN_PVP;
           send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
@@ -1248,7 +1260,7 @@ if (room == NULL)
         } 
         sleep(1);
 
-        if (room->reward[0] == room->reward[1]) continue;
+        if (room->reward[0] == room->reward[1] && room->questions.answer[room->index_current_question-1] == answers) continue;
         else break;
       }
       return 0;
@@ -1402,4 +1414,4 @@ void *thread_start(void *client_fd)
   pthread_exit(NULL);
 }
 
-#endif 
+#endif
