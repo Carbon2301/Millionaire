@@ -763,9 +763,12 @@ void send_online_players(int conn_fd) {
     while (current != NULL) {
         count++;
         if (current->login_status == AUTH) {
-            strcat(response, "%d. ", count);
-            strcat(response, current->login_account);
-            strcat(response, "\n");
+            // Chuyển count thành chuỗi trước khi nối vào response
+            char count_str[20];  // Tăng kích thước mảng count_str
+            sprintf(count_str, "%d. ", count);  // Chuyển số thành chuỗi
+            strcat(response, count_str);  // Nối chuỗi chứa count vào response
+            strcat(response, current->login_account);  // Nối tên tài khoản
+            strcat(response, "\n");  // Nối ký tự xuống dòng
         }
         current = current->next;
     }
