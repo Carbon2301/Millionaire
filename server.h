@@ -167,8 +167,8 @@ int connect_to_database()
     char server[50] = "127.0.0.1";
     int port = 3306;
     char database[50] = "ailatrieuphu";
-    char username[50] = "root";
-    char password[50] = "TrinhAn04";
+    char username[50] = "blask";
+    char password[50] = "mkgaming";
 
   conn = mysql_init(NULL);
   if (!mysql_real_connect(conn, server, username, password, database, port, NULL, 0)) {
@@ -759,9 +759,11 @@ void send_online_players(int conn_fd) {
     pthread_mutex_lock(&client_mutex);
     Client *current = head_client;
     char response[BUFF_SIZE] = "Danh sách người chơi đang online:\n";
-
+    int count = 0;
     while (current != NULL) {
+        count++;
         if (current->login_status == AUTH) {
+            strcat(response, "%d. ", count);
             strcat(response, current->login_account);
             strcat(response, "\n");
         }
