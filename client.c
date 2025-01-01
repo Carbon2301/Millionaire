@@ -42,7 +42,17 @@ enum msg_type
   CALL_PHONE,
   CHANGE_QUESTION,
   ASK_AUDIENCE,
-  HISTORY
+  HISTORY,
+  PLAY_PVP,
+  FOUND_PLAYER,
+  ENTERED_ROOM,
+  WAIT_OTHER_PLAYER,
+  NOT_FOUND_PLAYER,
+  OTHER_PLAYER_IS_PLAYING,
+  WIN_PVP,
+  LOSE_PVP,
+  COUNT_DOWN,
+  DRAW
 };
 
 typedef struct _message
@@ -61,7 +71,6 @@ typedef struct _account
 
   int is_number(const char *s);
   int validate_ip(char *ip);
-  int menu_start();
   int menu_not_login();
   int menu_logged();
   int connect_to_server(char ip[], int port);
@@ -74,6 +83,7 @@ typedef struct _account
   int show_menu_not_login();
   int show_menu_logged();
   int play_alone();
+  int play_pvp();
 
 int sockfd;
 int recvBytes, sendBytes;
@@ -169,7 +179,8 @@ int menu_logged() {
         printf("\t\t'5': Trợ giúp 50/50\n");
         printf("\t\t'6': Trợ giúp gọi điện thoại cho người thân\n");
         printf("\t\t'7': Trợ giúp đổi câu hỏi\n");
-        printf("\t3. Chơi với người khác - tạm thời chưa xử lí\n");
+        printf("\t\t'8': Trợ giúp hỏi ý kiến khán giả\n");
+        printf("\t3. Chơi với người khác - PVP\n");
         printf("\t4. Hiển thị lịch sử ván đấu\n");
         printf("\t5. Đăng xuất.\n");
         printf("Lựa chọn của bạn là: ");
@@ -479,6 +490,11 @@ int change_password(char password[]){
        msg.type = PLAY_ALONE;
        send(sockfd, &msg, sizeof(msg), 0);
        play_alone();
+       break;
+     case 3:
+       msg.type = PLAY_PVP;
+       send(sockfd, &msg, sizeof(msg), 0);
+       play_pvp();
        break;
      case 4:
        msg.type = HISTORY;
@@ -837,6 +853,112 @@ int play_alone() {
     }
 }
 
+int play_pvp()
+{
+  Message msg;
+  recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+  int timeout = 0;
+
+  if (recvBytes <= 0)
+  {
+    perror("Máy chủ ngắt kết nối");
+    exit(4);
+    return 0;
+  }
+  printf("%s\n", msg.value);
+  recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+  if (recvBytes <= 0)
+  {
+    perror("Máy chủ ngắt kết nối");
+    exit(4);
+    return 0;
+  }
+  switch (msg.type)
+  {
+  case FOUND_PLAYER:
+    printf("%s\n", msg.value);
+    break;
+  case NOT_FOUND_PLAYER:
+    printf("%s\n", msg.value);
+    return 0;
+  }
+  recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+  if (recvBytes <= 0)
+  {
+    perror("Máy chủ ngắt kết nối");
+    exit(4);
+    return 0;
+  }
+  printf("Enter room %s\n", msg.value);
+
+  while (1)
+  {
+    timeout = 0;
+    recvBytes = recv(sockfd, &msg, sizeof(msg), 0);
+    
+    if (recvBytes < 0)
+    {
+      perror("Máy chủ ngắt kết nối");
+      exit(0);
+      return 0;
+    }
+    else
+    {
+      switch (msg.type)
+      {
+      case QUESTION:
+        printf("%s\n", msg.value);
+        printf("Nhập lựa chọn của bạn: ");
+        int answer;
+        scanf("%d", &answer);
+        
+
+        msg.type = CHOICE_ANSWER;
+        snprintf(msg.value, sizeof(msg.value), "%d", answer);
+        send(sockfd, &msg, sizeof(msg), 0);
+        break;
+      case STOP_GAME:
+        printf("Bạn đã dừng cuộc chơi! %s\n", msg.value);
+        return 1;
+      case OVER_TIME:
+        printf("Hết giờ!\n");
+        msg.type = STOP_GAME;
+        send(sockfd, &msg, sizeof(msg), 0);
+        break;
+      case CORRECT_ANSWER:
+        printf("%s\n", msg.value);
+        break;
+      case WAIT_OTHER_PLAYER:
+        printf("%s\n", msg.value);
+        break;
+      case FOUND_PLAYER:
+        printf("%s\n", msg.value);
+        break;
+      case NOT_FOUND_PLAYER:
+        printf("%s\n", msg.value);
+        return 0;
+      case ENTERED_ROOM:
+        printf("%s\n", msg.value);
+        break;
+      case WIN_PVP:
+        printf("Bạn đã thắng!\n");
+        return 1;
+      case LOSE_PVP:
+        printf("Bạn đã thua!\n");
+        return 1;
+      case DRAW:
+        printf("Hòa!\n");
+        return 1;
+      default:
+        printf("Nhận được thông điệp không xác định: %d\n", msg.type);
+        printf("Nội dung thông điệp: %s\n", msg.value);
+        break;
+      }
+    }
+  }
+  return 1;
+}
+
  int main(int argc, char *argv[])
 {
    if(argc != 3)
@@ -853,4 +975,3 @@ int play_alone() {
     show_menu_not_login();
     return 0;
 }
-

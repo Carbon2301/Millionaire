@@ -20,6 +20,7 @@
 #define BUFF_SIZE 1024
 #define TRUE 1
 #define FALSE 0
+#define MAX_TIME_WAIT 5
 
 enum msg_type
 {
@@ -49,7 +50,17 @@ enum msg_type
   CALL_PHONE,
   CHANGE_QUESTION,
   ASK_AUDIENCE,
-  HISTORY
+  HISTORY,
+  PLAY_PVP,
+  FOUND_PLAYER,
+  ENTERED_ROOM,
+  WAIT_OTHER_PLAYER,
+  NOT_FOUND_PLAYER,
+  OTHER_PLAYER_IS_PLAYING,
+  WIN_PVP,
+  LOSE_PVP,
+  COUNT_DOWN,
+  DRAW
 };
 
 enum login_status
@@ -70,7 +81,8 @@ typedef struct _client
 {
   char login_account[BUFF_SIZE];
   int conn_fd;
-  int login_status; // [0: not logged in] & [1: logged in]
+  int login_status; // [0: not login yet] & [1: logged in]
+  int room_id;      // 0: in offline mode, 1: in room 1, 2: in room 2, 3: in room 3
   struct _client *next;
 } Client;
 Client *head_client = NULL;
@@ -91,6 +103,21 @@ typedef struct _question
   int sum_d[15];
 } Question;
 
+typedef struct _room
+{
+  int room_id;
+  int client_fd[2];              // set default all = 0
+  int status;                    // 0: no player enter, 1: waiting, 2: playing, 3: end
+  int play_status[2];            // 0: playing, 1: out of room, 2: lose, 3: win, 4: draw
+  int index_current_question;    // start from 1 to 15
+  Question questions;
+  int reward[2];                 // set default all = 0
+  int is_answered[2];
+  struct _room *next;
+} Room;
+Room *head_room = NULL;
+int current_id_room = 0;
+
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 MYSQL *conn;
@@ -104,6 +131,11 @@ int call_phone(Question q, int level);
 int change_question(Question *q, int level, int id);
 int ask_audience(const Question *q, int level, int sum[4]);
 Client *new_client();
+Room *new_room();
+Room *add_room();
+void delete_room(int room_id);
+Room *find_room_is_blank_or_waiting();
+int add_client_to_room(int conn_fd, Room *room);
 void catch_ctrl_c_and_exit(int sig);
 void add_client(int conn_fd);
 void delete_client(int conn_fd);
@@ -113,9 +145,14 @@ void *thread_start(void *client_fd);
 void hash_user_password(const char *password, char *hashed_password);
 int login(int conn_fd, char msg_data[BUFF_SIZE]);
 int signup(char username[BUFF_SIZE], char password[BUFF_SIZE]);
+void update_answer_sum(int id, int answer);
+void insert_history(char username[], int level);
+void get_history_by_username(char user_name[], int conn_fd);
+void *send_data(void *arg);
 int change_password(char username[BUFF_SIZE], char msg_data[BUFF_SIZE]);
 int handle_play_game(Message msg, int conn_fd, Question *questions, int level, int id,char username[BUFF_SIZE]);
 int handle_play_alone(int conn_fd, char username[BUFF_SIZE]);
+int handle_play_pvp(int conn_fd);
 
 /*---------------- Tính năng -------------------*/
 int connect_to_database()
@@ -243,6 +280,26 @@ Client *new_client()
 {
   Client *new = (Client *)malloc(sizeof(Client));
   new->login_status = UN_AUTH;
+  new->room_id = 0;
+  new->next = NULL;
+  return new;
+}
+
+Room *new_room()
+{
+  Room *new = (Room *)malloc(sizeof(Room));
+  new->room_id = ++current_id_room;
+  new->client_fd[0] = 0;
+  new->client_fd[1] = 0;
+  new->status = 0;
+  new->index_current_question = 0;
+  new->questions = get_questions();
+  new->play_status[0] = -1;
+  new->play_status[1] = -1;
+  new->reward[0] = 0;
+  new->reward[1] = 0;
+  new->is_answered[0] = 0;
+  new->is_answered[1] = 0;
   new->next = NULL;
   return new;
 }
@@ -324,11 +381,75 @@ Client *find_client(int conn_fd)
             pthread_mutex_unlock(&client_mutex);
             return found;
         }
-        tmp = tmp->next;
+        tmp = tmp->next;  // Tiến tới node tiếp theo trong danh sách
     }
 
     pthread_mutex_unlock(&client_mutex);
     return NULL;  //Trả về NULL nếu không tìm thấy
+}
+
+Room *add_room()
+{
+  Room *new = new_room();
+  if (head_room == NULL)
+    head_room = new; // if linked list is empty
+  else
+  {
+    Room *tmp = head_room; // assign head to p
+    while (tmp->next != NULL)
+      tmp = tmp->next; // traverse the list until the last node
+    tmp->next = new;   // Point the previous last node to the new node created.
+  }
+  return new;
+}
+
+void delete_room(int room_id)
+{
+  Room *tmp = head_room;
+  Room *prev = NULL;
+  while (tmp != NULL)
+  {
+    if (tmp->room_id == room_id)
+    {
+      if (prev == NULL)
+        head_room = tmp->next;
+      else
+        prev->next = tmp->next;
+      free(tmp);
+      return;
+    }
+    prev = tmp;
+    tmp = tmp->next;
+  }
+}
+
+Room *find_room_is_blank_or_waiting()
+{
+  Room *tmp = head_room;
+  while (tmp != NULL)
+  {
+    if (tmp->status == 0 || tmp->status == 1)
+      return tmp;
+    tmp = tmp->next;
+  }
+  return NULL;
+}
+
+int add_client_to_room(int conn_fd, Room *room)
+{
+  if (room->client_fd[0] == 0)
+  {
+    room->client_fd[0] = conn_fd;
+    room->status = 1;
+    return 0;
+  }
+  else if (room->client_fd[1] == 0)
+  {
+    room->client_fd[1] = conn_fd;
+    room->status = 2;
+    return 1;
+  }
+  return -1;
 }
 
 int is_number(const char *s)
@@ -566,121 +687,121 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
     char str[100];
     int answer;
 
-    switch (msg.type)
-    {
-    case OVER_TIME:
-      msg.type = OVER_TIME;
-      send(conn_fd, &msg, sizeof(msg), 0);
-      printf("[%d]: Over time\n", conn_fd);
-      break;
-     case FIFTY_FIFTY:
-        printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
-        int answers[2];
-        fifty_fifty(*questions, level, answers);
-        msg.type = FIFTY_FIFTY;
-        snprintf(msg.value, sizeof(msg.value), "%d và %d", answers[0], answers[1]);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        break;
-    case CALL_PHONE:
-      printf("[%d]: Client yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
-      int phone_answer[1];
-      phone_answer[0] = call_phone(*questions, level);  
-      msg.type = CALL_PHONE;
-      snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]); 
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
-    case CHANGE_QUESTION:
-      printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
-      change_question(questions, level, id);
-      msg.type = CHANGE_QUESTION;
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
-    case ASK_AUDIENCE:
-      printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
-      int sum[4];
-      ask_audience(questions, level, sum);  
-      msg.type = ASK_AUDIENCE;
-      int sum_answer = sum[0] + sum[1] + sum[2] + sum[3];
-      float sum_1 = (float)sum[0] / sum_answer * 100;
-      float sum_2 = (float)sum[1] / sum_answer * 100;
-      float sum_3 = (float)sum[2] / sum_answer * 100;
-      float sum_4 = (float)sum[3] / sum_answer * 100;
-      snprintf(msg.value, sizeof(msg.value), 
-          "Tỷ lệ chọn phương án 1 là: %.2f%%\n"
-          "Tỷ lệ chọn phương án 2 là: %.2f%%\n"
-          "Tỷ lệ chọn phương án 3 là: %.2f%%\n"
-          "Tỷ lệ chọn phương án 4 là: %.2f%%\n", sum_1, sum_2, sum_3, sum_4);
-      send(conn_fd, &msg, sizeof(msg), 0);
-      break;
-    case CHOICE_ANSWER:
-      answer = atoi(strtok(msg.value, "|"));
-      if (answer == 0){
-        msg.type = STOP_GAME;
-        insert_history(username, level);
-      if(level <= 1){
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
-        break;
-      }
-      else {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 2]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
-        break;
-      }
-      }
-      else if (questions->answer[level - 1] == answer)
+      switch (msg.type)
       {
-        update_answer_sum(id, answer);
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
-        strcpy(msg.value, str);
-        if (level == 15)
-        {
-          msg.type = WIN;
+      case OVER_TIME:
+        msg.type = OVER_TIME;
+        send(conn_fd, &msg, sizeof(msg), 0);
+        printf("[%d]: Over time\n", conn_fd);
+        break;
+      case FIFTY_FIFTY:
+          printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
+          int answers[2];
+          fifty_fifty(*questions, level, answers);
+          msg.type = FIFTY_FIFTY;
+          snprintf(msg.value, sizeof(msg.value), "%d và %d", answers[0], answers[1]);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          break;
+      case CALL_PHONE:
+        printf("[%d]: Client yêu cầu trợ giúp gọi điện thoại cho người thân câu hỏi %d\n", conn_fd, level);
+        int phone_answer[1];
+        phone_answer[0] = call_phone(*questions, level);  
+        msg.type = CALL_PHONE;
+        snprintf(msg.value, sizeof(msg.value), "%d", phone_answer[0]); 
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case CHANGE_QUESTION:
+        printf("[%d]: Client yêu cầu trợ giúp đổi câu hỏi %d\n", conn_fd, level);
+        change_question(questions, level, id);
+        msg.type = CHANGE_QUESTION;
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case ASK_AUDIENCE:
+        printf("[%d]: Client yêu cầu trợ giúp hỏi ý kiến khán giả cho câu hỏi %d\n", conn_fd, level);
+        int sum[4];
+        ask_audience(questions, level, sum);  
+        msg.type = ASK_AUDIENCE;
+        int sum_answer = sum[0] + sum[1] + sum[2] + sum[3];
+        float sum_1 = (float)sum[0] / sum_answer * 100;
+        float sum_2 = (float)sum[1] / sum_answer * 100;
+        float sum_3 = (float)sum[2] / sum_answer * 100;
+        float sum_4 = (float)sum[3] / sum_answer * 100;
+        snprintf(msg.value, sizeof(msg.value), 
+            "Tỷ lệ chọn phương án 1 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 2 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 3 là: %.2f%%\n"
+            "Tỷ lệ chọn phương án 4 là: %.2f%%\n", sum_1, sum_2, sum_3, sum_4);
+        send(conn_fd, &msg, sizeof(msg), 0);
+        break;
+      case CHOICE_ANSWER:
+        answer = atoi(strtok(msg.value, "|"));
+        if (answer == 0){
+          msg.type = STOP_GAME;
           insert_history(username, level);
+        if(level <= 1){
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
+          strcpy(msg.value, str);
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: WIN!\n", conn_fd);
+          printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
+          break;
         }
-        else{
-          msg.type = CORRECT_ANSWER;
+        else {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 2]);
+          strcpy(msg.value, str);
           send(conn_fd, &msg, sizeof(msg), 0);
-          printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, level );
-          return 0;
+          printf("[%d]: Xin dừng cuộc chơi!\n", conn_fd);
+          break;
         }
-      }
-      else
-      {
-        update_answer_sum(id, answer);
-        msg.type = LOSE;
-        insert_history(username, level);
-        if (level <= 5) {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: LOSE\n", conn_fd);
-        break;
-        } else if (level <= 10) {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: LOSE\n", conn_fd);
-        break;
-        } else {
-        sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
-        strcpy(msg.value, str);
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: LOSE\n", conn_fd);
-        break;
         }
-      }
-      break;
+        else if (questions->answer[level - 1] == answer)
+        {
+          update_answer_sum(id, answer);
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: %d", questions->answer[level - 1], questions->reward[level - 1]);
+          strcpy(msg.value, str);
+          if (level == 15)
+          {
+            msg.type = WIN;
+            insert_history(username, level);
+            send(conn_fd, &msg, sizeof(msg), 0);
+            printf("[%d]: WIN!\n", conn_fd);
+          }
+          else{
+            msg.type = CORRECT_ANSWER;
+            send(conn_fd, &msg, sizeof(msg), 0);
+            printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, level );
+            return 0;
+          }
+        }
+        else
+        {
+          update_answer_sum(id, answer);
+          msg.type = LOSE;
+          insert_history(username, level);
+          if (level <= 5) {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 0", questions->answer[level - 1]);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: LOSE\n", conn_fd);
+          break;
+          } else if (level <= 10) {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 2000", questions->answer[level - 1]);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: LOSE\n", conn_fd);
+          break;
+          } else {
+          sprintf(str, "Đáp án: %d\nSố tiền thưởng của bạn: 22000", questions->answer[level - 1]);
+          strcpy(msg.value, str);
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: LOSE\n", conn_fd);
+          break;
+          }
+        }
+        break;
 
-    default:
-      break;
-    } 
+      default:
+        break;
+    }
 
     return 1;
 }
@@ -757,6 +878,330 @@ recvLabel:
   return 1;
 }
 
+int handle_play_pvp(int conn_fd)
+{
+  Message msg;
+  int is_found = 0, index_in_room = -1, index_doi_thu_in_room = -1, is_me_win = -1, re, thoi_gian_tra_loi = 0, dap_an, id;
+  int send_question = 0, wait_time = 0;
+  Room *room;
+  char str[BUFF_SIZE], username[BUFF_SIZE];
+  time_t start, endwait, seconds, start_reply, end_reply;
+  
+  msg.type = WAIT_OTHER_PLAYER;
+  strcpy(msg.value, "Đang tìm kiếm người chơi khác, xin chờ chút...\n");
+  
+  if (send(conn_fd, &msg, sizeof(msg), 0) < 0)
+  {
+    perror("Send error!");
+    delete_client(conn_fd);
+    return 0;
+  }
+  room = find_room_is_blank_or_waiting();
+
+if (room == NULL)
+  {
+    is_found = 0;
+    room = add_room();
+
+    add_client_to_room(conn_fd, room);
+    send_question = 1;
+    start = time(NULL);
+    seconds = 10; // end loop after this time has elapsed
+    endwait = start + seconds;
+
+    msg.type = WAIT_OTHER_PLAYER;
+    strcpy(msg.value, "Đang tìm kiếm người chơi khác, xin chờ chút...\n");
+    if (send(conn_fd, &msg, sizeof(msg), 0) < 0)
+    {
+      perror("Send error!");
+      delete_client(conn_fd);
+      return 0;
+    }
+    
+    printf("Find opponent for room %d...\n", room->room_id);
+    // printf("start time is: %s", ctime(&start));
+    
+    while (start < endwait)
+    {
+      if (room->client_fd[1] != 0)
+      {
+        is_found = 1;
+        index_in_room = 0;
+        index_doi_thu_in_room = 1;
+        break;
+      }
+      sleep(1); // sleep 1s.
+      // start = time(NULL);
+      // printf("loop time is: %s", ctime(&start));
+      printf("Finding opponent for room %d...\n", room->room_id);
+    }
+    // printf("end time is: %s", ctime(&endwait));
+    printf("Found opponent for room %d...\n", room->room_id);
+  }
+  else
+  {
+    is_found = 1;
+    add_client_to_room(conn_fd, room);
+    send_question = 0;
+    index_in_room = 1;
+    index_doi_thu_in_room = 0;          
+  }
+
+  if (is_found == 1)
+  {
+    msg.type = FOUND_PLAYER;
+    strcpy(msg.value, "Đã tìm thấy người chơi khác, bắt đầu trò chơi!");
+
+    if (send(conn_fd, &msg, sizeof(msg), 0) < 0)
+    {
+      perror("Send error!");
+      delete_client(conn_fd);
+      return 0;
+    }
+    
+    room->play_status[index_in_room] = 0;
+    msg.type = ENTERED_ROOM;
+
+    sprintf(str, "%d", room->room_id);
+    strcpy(msg.value, str);
+
+    if (send(conn_fd, &msg, sizeof(msg), 0) < 0)
+    {
+      perror("Send error!");
+      delete_client(conn_fd);
+      return 0;
+    }
+
+    int room_id_current = room->room_id;
+
+    if(send_question){
+      while (room->index_current_question < 15)
+      {             
+        room->is_answered[index_in_room] = 0;
+        room->is_answered[index_doi_thu_in_room] = 0;
+        msg.type = QUESTION;
+        snprintf(str, sizeof(str), "Câu %d: %s\n", 
+            room->index_current_question + 1, 
+            room->questions.question[room->index_current_question]);
+        strcpy(msg.value, str); 
+
+        snprintf(str, sizeof(str), "1. %.500s\n2. %.500s\n3. %.500s\n4. %.500s\n",
+            room->questions.a[room->index_current_question], 
+            room->questions.b[room->index_current_question], 
+            room->questions.c[room->index_current_question], 
+            room->questions.d[room->index_current_question]);
+        strcat(msg.value, str); 
+
+        send(room->client_fd[0], &msg, sizeof(msg), 0);
+        send(room->client_fd[1], &msg, sizeof(msg), 0);
+        room->index_current_question++;
+        
+        start_reply = time(NULL);
+
+        recv(conn_fd, &msg, sizeof(msg), 0);
+        int answers = atoi(msg.value);
+        room->is_answered[index_in_room] = 1;
+
+        end_reply = time(NULL);
+        seconds = end_reply - start_reply;
+        printf("[%d]: Thời gian trả lời: %ld\n", conn_fd, seconds);
+        
+        if (room->questions.answer[room->index_current_question-1] == answers)
+        {
+          room->reward[index_in_room]++;
+          msg.type = CORRECT_ANSWER;
+          strcpy(msg.value, "Trả lời đúng!");
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, room->index_current_question);
+        }
+        else
+        {
+          msg.type = CORRECT_ANSWER;
+          strcpy(msg.value, "Trả lời sai!");
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: Trả lời sai câu hỏi %d\n", conn_fd, room->index_current_question);
+        }
+        wait_time = 0;
+        while (1)
+        {
+          if (room->is_answered[0] == 1 && room->is_answered[1] == 1) break;          
+          msg.type = WAIT_OTHER_PLAYER;
+          strcpy(msg.value, "Đang chờ đối thủ trả lời câu hỏi...");
+          send(conn_fd, &msg, sizeof(msg), 0);
+          sleep(1);
+          wait_time++;sleep(1);
+          if (wait_time >= MAX_TIME_WAIT)
+          {
+            if (room->is_answered[0] == 0)
+            {
+              if (room->is_answered[1] == 0)
+              {
+                msg.type = DRAW;
+                send(room->client_fd[0], &msg, sizeof(msg), 0);
+                send(room->client_fd[1], &msg, sizeof(msg), 0);
+                printf("Room [%d]: Draw\n", room->room_id);
+              }
+              else
+              {
+                msg.type = LOSE_PVP;
+                send(room->client_fd[0], &msg, sizeof(msg), 0);
+                msg.type = WIN_PVP;
+                send(room->client_fd[1], &msg, sizeof(msg), 0);
+              }
+            }
+            else
+            {
+              msg.type = LOSE_PVP;
+              send(room->client_fd[1], &msg, sizeof(msg), 0);
+              msg.type = WIN_PVP;
+              send(room->client_fd[0], &msg, sizeof(msg), 0);
+            }
+            printf("Room [%d]: Timeout\n", room->room_id);            
+            delete_room(room->room_id);
+            return 0;
+          }
+        } 
+
+        sleep(1);
+        if (room->reward[0] == 15 && room->reward[1] == 15)
+        {
+          msg.type = DRAW;
+          send(room->client_fd[0], &msg, sizeof(msg), 0);
+          send(room->client_fd[1], &msg, sizeof(msg), 0);
+          printf("Room [%d]: Draw\n", room->room_id);
+          sleep(1);
+          delete_room(room->room_id);
+          return 0;
+        } else if (room->reward[0] == room->reward[1]){
+          if (room->questions.answer[room->index_current_question-1] == answers)
+          {
+            continue;
+          }
+          else {
+          msg.type = DRAW;
+          send(room->client_fd[0], &msg, sizeof(msg), 0);
+          send(room->client_fd[1], &msg, sizeof(msg), 0);
+          printf("Room [%d]: Draw\n", room->room_id);
+          sleep(1);
+          delete_room(room->room_id);
+          return 0;
+        }
+        } else if (room->reward[index_in_room] > room->reward[index_doi_thu_in_room]){
+          msg.type = WIN_PVP;
+          send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+          msg.type = LOSE_PVP;
+          send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+          printf("Room [%d]: %s win\n", room->room_id, username);
+          sleep(1);       
+          delete_room(room->room_id);
+          return 0;
+        } else
+        {
+          msg.type = LOSE_PVP;
+          send(room->client_fd[index_in_room], &msg, sizeof(msg), 0);
+          msg.type = WIN_PVP;
+          send(room->client_fd[index_doi_thu_in_room], &msg, sizeof(msg), 0);
+          printf("Room [%d]: %s win\n", room->room_id, username);
+          sleep(1);
+          delete_room(room->room_id);
+          return 0;
+        }
+      }
+    }
+    else
+    {
+      while (room->index_current_question < 15)
+      {
+        start_reply = time(NULL);
+        
+        recv(conn_fd, &msg, sizeof(msg), 0);
+        int answers = atoi(msg.value);
+        room->is_answered[index_in_room] = 1;
+
+        end_reply = time(NULL);
+        seconds = end_reply - start_reply;
+        printf("[%d]: Thời gian trả lời: %ld\n", conn_fd, seconds);
+        
+        if (room->questions.answer[room->index_current_question-1] == answers)
+        {
+          room->reward[index_in_room]++;
+          msg.type = CORRECT_ANSWER;
+          strcpy(msg.value, "Trả lời đúng!");
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: Trả lời đúng câu hỏi %d\n", conn_fd, room->index_current_question);
+        }
+        else
+        {
+          msg.type = CORRECT_ANSWER;
+          strcpy(msg.value, "Trả lời sai!");
+          send(conn_fd, &msg, sizeof(msg), 0);
+          printf("[%d]: Trả lời sai câu hỏi %d\n", conn_fd, room->index_current_question);
+        }
+        wait_time = 0;
+        while (1)
+        {
+          if (room->is_answered[0] == 1 && room->is_answered[1] == 1) break;          
+          msg.type = WAIT_OTHER_PLAYER;
+          strcpy(msg.value, "Đang chờ đối thủ trả lời câu hỏi...");
+          send(conn_fd, &msg, sizeof(msg), 0);
+          sleep(1);
+          wait_time++;
+          if (wait_time >= MAX_TIME_WAIT)
+          {
+            if (room->is_answered[0] == 0)
+            {
+              if (room->is_answered[1] == 0)
+              {
+                msg.type = DRAW;
+                send(room->client_fd[0], &msg, sizeof(msg), 0);
+                send(room->client_fd[1], &msg, sizeof(msg), 0);
+                printf("Room [%d]: Draw\n", room->room_id);
+              }
+              else
+              {
+                msg.type = LOSE_PVP;
+                send(room->client_fd[0], &msg, sizeof(msg), 0);
+                msg.type = WIN_PVP;
+                send(room->client_fd[1], &msg, sizeof(msg), 0);
+              }
+            }
+            else
+            {
+              msg.type = LOSE_PVP;
+              send(room->client_fd[1], &msg, sizeof(msg), 0);
+              msg.type = WIN_PVP;
+              send(room->client_fd[0], &msg, sizeof(msg), 0);
+            }
+            printf("Room [%d]: Timeout\n", room->room_id);
+            sleep(1);
+            delete_room(room->room_id);
+            return 0;
+          }
+        } 
+        sleep(1);
+
+        if (room->reward[0] == room->reward[1] && room->questions.answer[room->index_current_question-1] == answers) continue;
+        else break;
+      }
+      return 0;
+    }
+  }
+  else {
+    msg.type = NOT_FOUND_PLAYER;
+    printf("[%d]: Not found player\n", conn_fd);
+    if (send(conn_fd, &msg, sizeof(msg), 0) < 0)
+    {
+      perror("Send error!");
+      delete_client(conn_fd);
+      return 0;
+    }
+    if(room != NULL)
+      delete_room(room->room_id);
+    return 0;
+  }
+  return 1;
+}
+
 void *thread_start(void *client_fd)
 {
   pthread_detach(pthread_self());
@@ -816,6 +1261,9 @@ void *thread_start(void *client_fd)
       case PLAY_ALONE:
         printf("[%d]: '%s' đang chơi đơn!\n", conn_fd, cli->login_account);
         handle_play_alone(conn_fd, cli->login_account);
+        break;
+      case PLAY_PVP:
+        handle_play_pvp(conn_fd);
         break;
       case HISTORY:
         printf("[%d]: '%s' yêu cầu xem lịch sử đấu!\n", conn_fd, cli->login_account);
@@ -905,4 +1353,4 @@ void *thread_start(void *client_fd)
   pthread_exit(NULL);
 }
 
-#endif 
+#endif

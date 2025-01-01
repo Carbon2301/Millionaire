@@ -38,8 +38,8 @@ CREATE TABLE `questions` (
 CREATE TABLE `history` (
   `id` int NOT NULL AUTO_INCREMENT,
   `username` varchar(50) NOT NULL,
-  `correct_answers` int NOT NULL,  -- Số câu trả lời đúng
-  `play_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- Thời gian ván đấu khi lưu vào CSDL
+  `correct_answers` int NOT NULL,
+  `play_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
