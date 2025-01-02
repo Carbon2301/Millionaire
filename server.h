@@ -621,7 +621,9 @@ void update_answer_sum(int id, int answer) {
             printf("Lựa chọn không hợp lệ!\n");
             break;
     }
-
+    if (mysql_query(conn, query)) {
+        fprintf(stderr, "Lỗi khi cập nhật câu trả lời: %s\n", mysql_error(conn));
+    }
     pthread_mutex_unlock(&mutex);
 }
 
@@ -792,11 +794,6 @@ int handle_play_game(Message msg, int conn_fd, Question *questions, int level, i
 
       switch (msg.type)
       {
-      case OVER_TIME:
-        msg.type = OVER_TIME;
-        send(conn_fd, &msg, sizeof(msg), 0);
-        printf("[%d]: Over time\n", conn_fd);
-        break;
       case FIFTY_FIFTY:
           printf("[%d]: Client yêu cầu trợ giúp 50/50 cho câu hỏi %d\n", conn_fd, level);
           int answers[2];
@@ -954,7 +951,6 @@ recvLabel:
 
     switch (msg.type)
     {
-    case OVER_TIME:
     case STOP_GAME:
       handle_play_game(msg, conn_fd, &questions, level, id, username);
       return 0;
