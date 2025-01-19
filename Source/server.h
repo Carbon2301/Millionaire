@@ -167,8 +167,8 @@ int connect_to_database()
     char server[50] = "127.0.0.1";
     int port = 3306;
     char database[50] = "ailatrieuphu";
-    char username[50] = "root";
-    char password[50] = "TrinhAn04";
+    char username[50] = "YOUR_USERNAME";
+    char password[50] = "YOUR_PASSWORD";
 
   conn = mysql_init(NULL);
   if (!mysql_real_connect(conn, server, username, password, database, port, NULL, 0)) {
